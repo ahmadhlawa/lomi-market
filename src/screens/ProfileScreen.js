@@ -1,13 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import {
-  Image,
-  ScrollView,
-  StyleSheet,
-  Switch,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native';
+import { Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,14 +8,7 @@ import { activeOpacity, colors, globalStyles, spacing } from '../theme';
 const avatarUrl =
   'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80';
 
-function MenuRow({
-  icon,
-  title,
-  subtitle,
-  danger = false,
-  right,
-  onPress,
-}) {
+function MenuRow({ icon, title, subtitle, danger = false, right, onPress }) {
   return (
     <TouchableOpacity activeOpacity={activeOpacity} style={styles.menuRow} onPress={onPress}>
       <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>
@@ -33,7 +18,7 @@ function MenuRow({
         <Text style={[styles.menuTitle, danger && styles.menuTitleDanger]}>{title}</Text>
         {!!subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
       </View>
-      {right || <Ionicons name="chevron-back" size={20} color={colors.surface3} />}
+      {right || <Ionicons name="chevron-forward" size={20} color={colors.surface3} />}
     </TouchableOpacity>
   );
 }
@@ -41,20 +26,18 @@ function MenuRow({
 function LanguagePill({ value, onChange }) {
   return (
     <View style={styles.languagePill}>
-      <TouchableOpacity
-        activeOpacity={activeOpacity}
-        style={[styles.languageSide, value === 'en' && styles.languageSideActive]}
-        onPress={() => onChange('en')}
-      >
-        <Text style={[styles.languageText, value === 'en' && styles.languageTextActive]}>EN</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        activeOpacity={activeOpacity}
-        style={[styles.languageSide, value === 'ar' && styles.languageSideActive]}
-        onPress={() => onChange('ar')}
-      >
-        <Text style={[styles.languageText, value === 'ar' && styles.languageTextActive]}>عربي</Text>
-      </TouchableOpacity>
+      {['en', 'ar'].map((item) => (
+        <TouchableOpacity
+          key={item}
+          activeOpacity={activeOpacity}
+          style={[styles.languageSide, value === item && styles.languageSideActive]}
+          onPress={() => onChange(item)}
+        >
+          <Text style={[styles.languageText, value === item && styles.languageTextActive]}>
+            {item.toUpperCase()}
+          </Text>
+        </TouchableOpacity>
+      ))}
     </View>
   );
 }
@@ -62,6 +45,7 @@ function LanguagePill({ value, onChange }) {
 export default function ProfileScreen() {
   const [notifications, setNotifications] = useState(true);
   const [language, setLanguage] = useState('en');
+  const [loggedOut, setLoggedOut] = useState(false);
 
   useEffect(() => {
     AsyncStorage.getItem('lomi:language').then((stored) => {
@@ -74,13 +58,25 @@ export default function ProfileScreen() {
     await AsyncStorage.setItem('lomi:language', value);
   };
 
+  const logoutDemo = () => {
+    setLoggedOut(true);
+    setTimeout(() => setLoggedOut(false), 1500);
+  };
+
   return (
     <SafeAreaView edges={['top']} style={globalStyles.screen}>
       <View style={styles.header}>
-        <Ionicons name="ellipsis-vertical" size={22} color="#555555" />
+        <Ionicons name="settings-outline" size={22} color={colors.textMuted} />
         <Text style={styles.headerTitle}>Profile</Text>
-        <Ionicons name="arrow-forward" size={23} color={colors.primary} />
+        <Ionicons name="person-circle-outline" size={25} color={colors.primary} />
       </View>
+
+      {loggedOut && (
+        <View style={styles.toast}>
+          <Ionicons name="information-circle" size={17} color={colors.primary} />
+          <Text style={styles.toastText}>Demo logout only</Text>
+        </View>
+      )}
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.avatarSection}>
@@ -91,23 +87,20 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           <Text style={styles.name}>Sami Ahmad</Text>
-          <Text style={styles.phone}>+966 50 123 4567</Text>
+          <Text style={styles.phone}>+970 599 123 456</Text>
+          <Text style={styles.demoBadge}>Customer demo profile</Text>
         </View>
 
         <View style={styles.menuGroup}>
-          <MenuRow
-            icon="location-outline"
-            title="My Addresses"
-            subtitle="Manage delivery locations"
-          />
-          <MenuRow icon="card-outline" title="Payment" subtitle="Cards and wallet balance" />
+          <MenuRow icon="location-outline" title="Addresses" subtitle="Home, office, and saved delivery spots" />
+          <MenuRow icon="card-outline" title="Payment methods" subtitle="Cards, cash, and wallet settings" />
         </View>
 
         <View style={styles.menuGroup}>
           <MenuRow
             icon="notifications-outline"
             title="Notifications"
-            subtitle="Alerts and promotional emails"
+            subtitle="Order alerts and market offers"
             right={
               <Switch
                 value={notifications}
@@ -126,17 +119,13 @@ export default function ProfileScreen() {
         </View>
 
         <View style={styles.menuGroup}>
-          <MenuRow
-            icon="help-circle-outline"
-            title="Help & Support"
-            subtitle="FAQ and customer service"
-          />
-          <MenuRow icon="log-out-outline" title="Logout" danger />
+          <MenuRow icon="help-circle-outline" title="Help & support" subtitle="FAQ and customer care" />
+          <MenuRow icon="log-out-outline" title="Logout" subtitle="Safe demo action" danger onPress={logoutDemo} />
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerBrand}>LOMI MARKET</Text>
-          <Text style={styles.version}>Version 1.0.2</Text>
+          <Text style={styles.version}>Demo version 1.0.0</Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -156,15 +145,35 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.textPrimary,
     fontSize: 19,
-    fontWeight: '800',
+    fontWeight: '900',
     textAlign: 'center',
+  },
+  toast: {
+    position: 'absolute',
+    zIndex: 4,
+    top: 74,
+    alignSelf: 'center',
+    height: 36,
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+  },
+  toastText: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '800',
   },
   content: {
     paddingBottom: 115,
   },
   avatarSection: {
     alignItems: 'center',
-    marginTop: 28,
+    marginTop: 26,
   },
   avatarWrap: {
     width: 108,
@@ -198,22 +207,30 @@ const styles = StyleSheet.create({
   },
   phone: {
     color: colors.primary,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     marginTop: 6,
+  },
+  demoBadge: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '700',
+    marginTop: 7,
   },
   menuGroup: {
     marginHorizontal: spacing.screen,
     marginTop: 22,
-    backgroundColor: '#151515',
+    backgroundColor: colors.surface,
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
     paddingVertical: 6,
   },
   menuRow: {
     minHeight: 76,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    flexDirection: 'row-reverse',
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
@@ -230,12 +247,11 @@ const styles = StyleSheet.create({
   },
   menuText: {
     flex: 1,
-    alignItems: 'flex-end',
   },
   menuTitle: {
     color: colors.textPrimary,
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   menuTitleDanger: {
     color: colors.error,
@@ -246,7 +262,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   languagePill: {
-    width: 110,
+    width: 108,
     height: 36,
     borderRadius: 18,
     backgroundColor: colors.surface2,
@@ -267,24 +283,22 @@ const styles = StyleSheet.create({
   languageText: {
     color: colors.textSecondary,
     fontSize: 12,
-    fontWeight: '700',
+    fontWeight: '900',
   },
   languageTextActive: {
     color: colors.dark,
   },
   footer: {
-    marginTop: 36,
+    marginTop: 34,
     alignItems: 'center',
   },
   footerBrand: {
-    color: colors.primary,
+    ...globalStyles.brandText,
     fontSize: 18,
-    fontWeight: '900',
-    fontStyle: 'italic',
     letterSpacing: 2,
   },
   version: {
-    color: '#444444',
+    color: colors.textMuted,
     fontSize: 12,
     marginTop: 6,
   },

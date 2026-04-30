@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   StyleSheet,
@@ -12,188 +11,248 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
+import { demoAddress } from '../data/mockData';
 import { useCart } from '../context/CartContext';
 import {
   activeOpacity,
   colors,
-  formatPrice,
+  formatCurrency,
   globalStyles,
   mapDarkStyle,
   mapRegion,
   spacing,
 } from '../theme';
 
+const deliveryOptions = [
+  { id: 'asap', title: 'ASAP', subtitle: '30-45 min' },
+  { id: 'evening', title: 'Today evening', subtitle: '6:00 PM - 8:00 PM' },
+  { id: 'tomorrow', title: 'Tomorrow morning', subtitle: '9:00 AM - 11:00 AM' },
+];
+
 function Header({ onBack }) {
   return (
     <View style={styles.header}>
       <TouchableOpacity activeOpacity={activeOpacity} style={styles.headerButton} onPress={onBack}>
-        <Ionicons name="arrow-back" size={25} color={colors.primary} />
+        <Ionicons name="arrow-back" size={23} color={colors.primary} />
       </TouchableOpacity>
       <View style={styles.headerTitleWrap}>
-        <Text style={styles.headerTitle}>CHECKOUT</Text>
-        <Text style={styles.headerTitleAr}>الدفع</Text>
+        <Text style={styles.headerTitle}>Checkout</Text>
+        <Text style={styles.headerSub}>Invoice and delivery details</Text>
       </View>
       <View style={styles.headerButton} />
     </View>
   );
 }
 
-function SectionTitle({ title, ar, action }) {
+function SectionTitle({ title, action }) {
   return (
     <View style={styles.sectionTitleRow}>
-      <View>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.sectionTitleAr}>{ar}</Text>
-      </View>
-      {action && (
-        <TouchableOpacity activeOpacity={activeOpacity}>
-          <Text style={styles.editText}>{action}</Text>
-        </TouchableOpacity>
-      )}
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {!!action && <Text style={styles.editText}>{action}</Text>}
     </View>
   );
 }
 
-function PaymentOption({ selected, icon, title, subtitle, onPress }) {
+function SafeMap() {
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.mapFallback}>
+        <Ionicons name="map-outline" size={30} color={colors.primary} />
+        <Text style={styles.mapFallbackText}>Map preview</Text>
+      </View>
+    );
+  }
+
+  return (
+    <MapView
+      style={StyleSheet.absoluteFill}
+      customMapStyle={mapDarkStyle}
+      initialRegion={mapRegion}
+      scrollEnabled={false}
+      zoomEnabled={false}
+      rotateEnabled={false}
+      pitchEnabled={false}
+    >
+      <Marker coordinate={mapRegion}>
+        <Ionicons name="location" size={34} color={colors.primary} />
+      </Marker>
+    </MapView>
+  );
+}
+
+function OptionCard({ selected, icon, title, subtitle, onPress }) {
   return (
     <TouchableOpacity
       activeOpacity={activeOpacity}
-      style={[styles.paymentOption, selected && styles.paymentOptionSelected]}
+      style={[styles.optionCard, selected && styles.optionCardSelected]}
       onPress={onPress}
     >
-      <View style={styles.paymentIcon}>
-        <Ionicons name={icon} size={21} color={colors.primary} />
+      <View style={styles.optionIcon}>
+        <Ionicons name={icon} size={20} color={colors.primary} />
       </View>
-      <View style={styles.paymentText}>
-        <Text style={styles.paymentTitle}>{title}</Text>
-        <Text style={styles.paymentSubtitle}>{subtitle}</Text>
+      <View style={styles.optionText}>
+        <Text style={styles.optionTitle}>{title}</Text>
+        <Text style={styles.optionSubtitle}>{subtitle}</Text>
       </View>
-      <View style={[styles.radio, selected && styles.radioSelected]}>
-        {selected && <View style={styles.radioInner} />}
-      </View>
+      <Ionicons
+        name={selected ? 'checkmark-circle' : 'ellipse-outline'}
+        size={22}
+        color={selected ? colors.primary : colors.surface3}
+      />
     </TouchableOpacity>
+  );
+}
+
+function SummaryRow({ label, value, valueColor = colors.textPrimary }) {
+  return (
+    <View style={styles.summaryRow}>
+      <Text style={styles.summaryLabel}>{label}</Text>
+      <Text style={[styles.summaryValue, { color: valueColor }]}>{value}</Text>
+    </View>
   );
 }
 
 export default function CheckoutScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { total } = useCart();
+  const {
+    items,
+    count,
+    subtotal,
+    deliveryFee,
+    serviceFee,
+    discount,
+    total,
+    appliedPromo,
+    placeOrder,
+  } = useCart();
   const [payment, setPayment] = useState('card');
+  const [delivery, setDelivery] = useState('asap');
+  const [address] = useState(demoAddress);
+  const [notes, setNotes] = useState('');
+  const [placing, setPlacing] = useState(false);
 
-  const placeOrder = () => {
-    navigation.getParent()?.navigate('OrdersTab', { screen: 'OrderTracking' });
+  const submitOrder = () => {
+    if (placing || count === 0) return;
+    setPlacing(true);
+    const order = placeOrder({ payment, notes, delivery, address });
+    setTimeout(() => {
+      navigation.getParent()?.navigate('OrdersTab', {
+        screen: 'OrderTracking',
+        params: { order },
+      });
+    }, 650);
   };
 
   return (
     <SafeAreaView edges={['top']} style={globalStyles.screen}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={styles.keyboard}
-      >
-        <Header onBack={() => navigation.goBack()} />
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[styles.content, { paddingBottom: 26 + insets.bottom }]}
-        >
-          <View style={styles.section}>
-            <SectionTitle title="Delivery Address" ar="عنوان التوصيل" action="Edit" />
-            <View style={styles.mapPreview}>
-              <MapView
-                style={StyleSheet.absoluteFill}
-                customMapStyle={mapDarkStyle}
-                initialRegion={mapRegion}
-                scrollEnabled={false}
-                zoomEnabled={false}
-                rotateEnabled={false}
-                pitchEnabled={false}
-              >
-                <Marker coordinate={mapRegion}>
-                  <View style={styles.mapPin}>
-                    <Ionicons name="location" size={32} color={colors.primary} />
-                  </View>
-                </Marker>
-              </MapView>
-            </View>
-            <View style={styles.addressCard}>
-              <Ionicons name="home" size={22} color={colors.primary} />
-              <View style={styles.addressText}>
-                <Text style={styles.addressTitle}>King Fahd Road, Ramallah</Text>
-                <Text style={styles.addressLine}>Building 4, Apt 12</Text>
-                <Text style={styles.addressAr}>شارع الملك فهد، رام الله - عمارة 4، شقة 12</Text>
-              </View>
+      <Header onBack={() => navigation.goBack()} />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: 30 + insets.bottom }]}>
+        <View style={styles.section}>
+          <SectionTitle title="Delivery address" action="Demo address" />
+          <View style={styles.mapPreview}>
+            <SafeMap />
+          </View>
+          <View style={styles.addressCard}>
+            <Ionicons name="home" size={22} color={colors.primary} />
+            <View style={styles.addressText}>
+              <Text style={styles.addressTitle}>{address.title}</Text>
+              <Text style={styles.addressLine}>{address.line}</Text>
+              <Text style={styles.addressAr}>{address.ar}</Text>
             </View>
           </View>
+        </View>
 
-          <View style={styles.section}>
-            <SectionTitle title="Delivery Time" ar="وقت التوصيل" />
-            <View style={styles.deliveryCard}>
-              <View style={styles.deliveryIcon}>
-                <Ionicons name="flash" size={21} color={colors.dark} />
-              </View>
-              <View style={styles.deliveryText}>
-                <Text style={styles.deliveryTitle}>Immediate Delivery</Text>
-                <Text style={styles.deliveryAr}>توصيل مباشر</Text>
-              </View>
-              <View style={styles.deliveryTime}>
-                <Ionicons name="time-outline" size={14} color={colors.textSecondary} />
-                <Text style={styles.deliveryTimeText}>25-35 mins • دقيقة 35-25</Text>
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <SectionTitle title="Payment Method" ar="طريقة الدفع" />
-            <View style={styles.paymentList}>
-              <PaymentOption
-                selected={payment === 'card'}
-                icon="card-outline"
-                title="Credit Card"
-                subtitle="**** **** **** 4242"
-                onPress={() => setPayment('card')}
-              />
-              <PaymentOption
-                selected={payment === 'cash'}
-                icon="cash-outline"
-                title="Cash on Delivery"
-                subtitle="الدفع عند الاستلام"
-                onPress={() => setPayment('cash')}
-              />
-            </View>
-          </View>
-
-          <View style={styles.section}>
-            <SectionTitle title="Order Notes" ar="ملاحظات الطلب" />
-            <TextInput
-              multiline
-              textAlignVertical="top"
-              style={styles.notes}
-              placeholder="Any special instructions for delivery?"
-              placeholderTextColor="#444"
+        <View style={styles.section}>
+          <SectionTitle title="Delivery time" />
+          {deliveryOptions.map((option) => (
+            <OptionCard
+              key={option.id}
+              selected={delivery === option.id}
+              icon={option.id === 'asap' ? 'flash-outline' : 'calendar-outline'}
+              title={option.title}
+              subtitle={option.subtitle}
+              onPress={() => setDelivery(option.id)}
             />
-          </View>
+          ))}
+        </View>
 
-          <View style={styles.placeCard}>
-            <View style={styles.totalRow}>
-              <Text style={styles.totalLabel}>Total</Text>
-              <Text style={styles.totalValue}>{formatPrice(total)} ₪</Text>
-            </View>
-            <TouchableOpacity activeOpacity={activeOpacity} style={styles.placeButton} onPress={placeOrder}>
-              <Text style={styles.placeText}>PLACE ORDER</Text>
-              <Text style={styles.placeTextAr}>تأكيد الطلب</Text>
-            </TouchableOpacity>
+        <View style={styles.section}>
+          <SectionTitle title="Payment method" />
+          <OptionCard
+            selected={payment === 'card'}
+            icon="card-outline"
+            title="Card ending 4242"
+            subtitle="Demo payment method"
+            onPress={() => setPayment('card')}
+          />
+          <OptionCard
+            selected={payment === 'cash'}
+            icon="cash-outline"
+            title="Cash on delivery"
+            subtitle="Pay when the order arrives"
+            onPress={() => setPayment('cash')}
+          />
+        </View>
+
+        <View style={styles.section}>
+          <SectionTitle title="Order notes" />
+          <TextInput
+            value={notes}
+            onChangeText={setNotes}
+            multiline
+            textAlignVertical="top"
+            style={styles.notes}
+            placeholder="Any delivery instructions?"
+            placeholderTextColor={colors.textMuted}
+          />
+        </View>
+
+        <View style={styles.invoiceCard}>
+          <View style={styles.invoiceHeader}>
+            <Text style={styles.invoiceTitle}>Invoice preview</Text>
+            {!!appliedPromo && <Text style={styles.promoPill}>{appliedPromo.code}</Text>}
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+          {items.map((item) => (
+            <View key={item.product.id} style={styles.invoiceItem}>
+              <View style={styles.invoiceItemText}>
+                <Text style={styles.invoiceName} numberOfLines={1}>{item.product.name}</Text>
+                <Text style={styles.invoiceQty}>Qty {item.quantity} • {item.product.unit}</Text>
+              </View>
+              <Text style={styles.invoiceLineTotal}>{formatCurrency(item.product.price * item.quantity)}</Text>
+            </View>
+          ))}
+          <View style={styles.summaryDivider} />
+          <SummaryRow label="Items subtotal" value={formatCurrency(subtotal)} />
+          <SummaryRow label="Delivery fee" value={deliveryFee === 0 ? 'Free' : formatCurrency(deliveryFee)} valueColor={deliveryFee === 0 ? colors.success : colors.textPrimary} />
+          <SummaryRow label="Service fee" value={formatCurrency(serviceFee)} />
+          {discount > 0 && <SummaryRow label="Promo discount" value={`-${formatCurrency(discount)}`} valueColor={colors.success} />}
+          <View style={styles.summaryDivider} />
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Final total</Text>
+            <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
+          </View>
+          <Text style={styles.invoiceFoot}>
+            {payment === 'cash' ? 'Cash on delivery' : 'Card ending 4242'} • {deliveryOptions.find((item) => item.id === delivery)?.title}
+          </Text>
+        </View>
+
+        <TouchableOpacity
+          activeOpacity={activeOpacity}
+          disabled={placing || count === 0}
+          style={[styles.placeButton, (placing || count === 0) && styles.placeButtonDisabled]}
+          onPress={submitOrder}
+        >
+          <Text style={styles.placeText}>{placing ? 'Creating order...' : 'Place order'}</Text>
+          <Ionicons name="arrow-forward" size={18} color={colors.dark} />
+        </TouchableOpacity>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboard: {
-    flex: 1,
-  },
   header: {
-    height: 64,
+    height: 68,
     paddingHorizontal: spacing.screen,
     flexDirection: 'row',
     alignItems: 'center',
@@ -204,234 +263,132 @@ const styles = StyleSheet.create({
   headerButton: {
     width: 42,
     height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  headerTitleWrap: {
-    alignItems: 'center',
-  },
-  headerTitle: {
-    color: colors.primary,
-    fontSize: 17,
-    fontWeight: '900',
-    letterSpacing: 2,
-  },
-  headerTitleAr: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  content: {
-    paddingTop: 22,
-  },
-  section: {
-    paddingHorizontal: spacing.screen,
-    marginBottom: 24,
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-  },
-  sectionTitle: {
-    color: colors.textPrimary,
-    fontSize: 19,
-    fontWeight: '900',
-  },
-  sectionTitleAr: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    marginTop: 6,
-  },
-  editText: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: '800',
-    marginBottom: 2,
-  },
+  headerTitleWrap: { alignItems: 'center' },
+  headerTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '900' },
+  headerSub: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
+  content: { paddingTop: 20 },
+  section: { paddingHorizontal: spacing.screen, marginBottom: 22 },
+  sectionTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  sectionTitle: { color: colors.textPrimary, fontSize: 19, fontWeight: '900' },
+  editText: { color: colors.primary, fontSize: 13, fontWeight: '900' },
   mapPreview: {
-    height: 120,
+    height: 124,
     borderRadius: 22,
     overflow: 'hidden',
     backgroundColor: colors.surface2,
     marginTop: 14,
   },
-  mapPin: {
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+  mapFallback: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 8 },
+  mapFallbackText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
   addressCard: {
     marginTop: 10,
     backgroundColor: colors.surface,
-    borderRadius: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: 15,
     flexDirection: 'row',
     gap: 12,
   },
-  addressText: {
-    flex: 1,
-  },
-  addressTitle: {
-    color: colors.textPrimary,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  addressLine: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 4,
-  },
+  addressText: { flex: 1 },
+  addressTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '900' },
+  addressLine: { color: colors.textSecondary, fontSize: 13, marginTop: 4 },
   addressAr: {
     color: colors.textSecondary,
     fontSize: 12,
     marginTop: 4,
+    textAlign: 'right',
     writingDirection: 'rtl',
   },
-  deliveryCard: {
-    marginTop: 14,
+  optionCard: {
+    marginTop: 12,
     backgroundColor: colors.surface,
     borderRadius: 20,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 14,
     borderWidth: 1,
-    borderColor: colors.primaryDim,
-  },
-  deliveryIcon: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  deliveryText: {
-    flex: 1,
-  },
-  deliveryTitle: {
-    color: colors.textPrimary,
-    fontSize: 16,
-    fontWeight: '800',
-  },
-  deliveryAr: {
-    color: colors.textSecondary,
-    fontSize: 13,
-    marginTop: 2,
-  },
-  deliveryTime: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    maxWidth: 120,
-  },
-  deliveryTimeText: {
-    color: colors.textSecondary,
-    fontSize: 11,
-  },
-  paymentList: {
-    gap: 10,
-    marginTop: 14,
-  },
-  paymentOption: {
-    backgroundColor: colors.surface,
-    borderRadius: 18,
-    padding: 14,
+    borderColor: colors.border,
+    padding: 15,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
   },
-  paymentOptionSelected: {
-    backgroundColor: colors.surface2,
-  },
-  paymentIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
+  optionCardSelected: { borderColor: colors.primary, backgroundColor: colors.surface2 },
+  optionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  paymentText: {
-    flex: 1,
-  },
-  paymentTitle: {
-    color: colors.textPrimary,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  paymentSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 4,
-    letterSpacing: 2,
-  },
-  radio: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: colors.surface3,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  radioSelected: {
-    borderColor: colors.primary,
-  },
-  radioInner: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: colors.primary,
-  },
+  optionText: { flex: 1 },
+  optionTitle: { color: colors.textPrimary, fontSize: 15, fontWeight: '900' },
+  optionSubtitle: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
   notes: {
-    height: 86,
+    height: 88,
     backgroundColor: colors.surface,
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
     marginTop: 14,
     padding: 15,
     color: colors.textPrimary,
     fontSize: 14,
   },
-  placeCard: {
+  invoiceCard: {
     marginHorizontal: spacing.screen,
-    backgroundColor: 'rgba(30,30,30,0.96)',
+    backgroundColor: colors.surface,
     borderRadius: 24,
+    borderWidth: 1,
+    borderColor: colors.border,
     padding: 18,
   },
-  totalRow: {
+  invoiceHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
+  invoiceTitle: { color: colors.textPrimary, fontSize: 18, fontWeight: '900' },
+  promoPill: {
+    color: colors.dark,
+    backgroundColor: colors.primary,
+    borderRadius: 12,
+    overflow: 'hidden',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    fontSize: 11,
+    fontWeight: '900',
+  },
+  invoiceItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: 8,
+    gap: 12,
   },
-  totalLabel: {
-    color: colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '700',
-  },
-  totalValue: {
-    color: colors.primary,
-    fontSize: 24,
-    fontWeight: '900',
-  },
+  invoiceItemText: { flex: 1 },
+  invoiceName: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  invoiceQty: { color: colors.textSecondary, fontSize: 12, marginTop: 3 },
+  invoiceLineTotal: { color: colors.textPrimary, fontSize: 14, fontWeight: '900' },
+  summaryRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 },
+  summaryLabel: { color: colors.textSecondary, fontSize: 14 },
+  summaryValue: { fontSize: 14, fontWeight: '800' },
+  summaryDivider: { height: 1, backgroundColor: colors.surface2, marginVertical: 12 },
+  totalRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  totalLabel: { color: colors.textPrimary, fontSize: 17, fontWeight: '900' },
+  totalValue: { color: colors.primary, fontSize: 24, fontWeight: '900' },
+  invoiceFoot: { color: colors.textSecondary, fontSize: 12, marginTop: 10 },
   placeButton: {
-    marginTop: 15,
-    height: 60,
+    marginHorizontal: spacing.screen,
+    marginTop: 16,
+    height: 58,
     borderRadius: spacing.pill,
     backgroundColor: colors.primary,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 9,
   },
-  placeText: {
-    color: colors.dark,
-    fontSize: 17,
-    fontWeight: '900',
-    letterSpacing: 1,
-  },
-  placeTextAr: {
-    color: colors.dark,
-    fontSize: 13,
-    fontWeight: '700',
-    marginTop: 3,
-  },
+  placeButtonDisabled: { opacity: 0.7 },
+  placeText: { color: colors.dark, fontSize: 16, fontWeight: '900' },
 });

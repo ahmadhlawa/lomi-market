@@ -11,23 +11,23 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { activeOpacity, assets, colors, globalStyles, shadow } from '../theme';
+import { activeOpacity, assets, colors, globalStyles, shadow, spacing } from '../theme';
 
 const slides = [
   {
     image: assets.onboarding1,
-    titleEn: 'Fresh groceries\ndelivered fast',
-    titleAr: 'خضروات طازجة تصلك بسرعة',
+    title: 'Fresh groceries',
+    subtitle: 'Hand-picked produce, dairy, bakery, and daily essentials in one premium market.',
   },
   {
     image: assets.onboarding2,
-    titleEn: 'Track your order\nin real time',
-    titleAr: 'تتبع طلبك في الوقت الفعلي',
+    title: 'Fast delivery',
+    subtitle: 'Choose your basket and get it delivered across Ramallah in minutes.',
   },
   {
     image: assets.onboarding3,
-    titleEn: 'Exclusive deals\nevery day',
-    titleAr: 'عروض حصرية كل يوم',
+    title: 'Easy tracking',
+    subtitle: 'Follow every step from preparation to arrival with a live-style demo flow.',
   },
 ];
 
@@ -63,43 +63,42 @@ export default function OnboardingScreen({ navigation }) {
 
       <FlatList
         ref={listRef}
+        data={slides}
         horizontal
         pagingEnabled
         bounces={false}
-        data={slides}
-        keyExtractor={(item) => item.titleEn}
-        showsVerticalScrollIndicator={false}
+        keyExtractor={(item) => item.title}
         showsHorizontalScrollIndicator={false}
         onMomentumScrollEnd={(event) => {
-          const nextIndex = Math.round(event.nativeEvent.contentOffset.x / width);
-          setIndex(nextIndex);
+          setIndex(Math.round(event.nativeEvent.contentOffset.x / width));
         }}
         renderItem={({ item }) => (
           <View style={[styles.slide, { width }]}>
             <View style={[styles.imageCard, shadow]}>
-              <Image source={item.image} style={styles.slideImage} resizeMode="cover" />
+              <Image source={item.image} style={styles.image} resizeMode="cover" />
             </View>
             <View style={styles.copy}>
-              <Text style={styles.slideTitle}>{item.titleEn}</Text>
-              <Text style={styles.slideTitleAr}>{item.titleAr}</Text>
+              <Text style={styles.title}>{item.title}</Text>
+              <Text style={styles.subtitle}>{item.subtitle}</Text>
             </View>
           </View>
         )}
       />
 
-      <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 18) + 6 }]}>
+      <View style={[styles.bottom, { paddingBottom: Math.max(insets.bottom, 18) + 8 }]}>
         <View style={styles.dots}>
           {slides.map((slide, dotIndex) => (
             <View
-              key={slide.titleEn}
+              key={slide.title}
               style={[styles.dot, dotIndex === index ? styles.dotActive : styles.dotInactive]}
             />
           ))}
         </View>
         <TouchableOpacity activeOpacity={activeOpacity} style={styles.button} onPress={next}>
-          <Text style={styles.buttonText}>Get Started</Text>
-          <Text style={styles.buttonTextAr}>ابدأ الآن</Text>
-          <Ionicons name="arrow-forward" size={22} color={colors.dark} />
+          <Text style={styles.buttonText}>
+            {index === slides.length - 1 ? 'Get Started' : 'Next'}
+          </Text>
+          <Ionicons name="arrow-forward" size={21} color={colors.dark} />
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -108,55 +107,53 @@ export default function OnboardingScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   topBar: {
-    height: 72,
-    paddingHorizontal: 24,
+    height: 68,
+    paddingHorizontal: spacing.screen,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   brand: {
-    color: colors.primary,
-    fontSize: 28,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    letterSpacing: 0,
+    ...globalStyles.brandText,
+    fontSize: 25,
   },
   skip: {
     color: colors.textSecondary,
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
   },
   slide: {
     alignItems: 'center',
-    paddingTop: 12,
+    paddingTop: 10,
   },
   imageCard: {
-    width: '86%',
-    height: 360,
-    borderRadius: 32,
+    width: '88%',
+    height: 365,
+    borderRadius: 30,
     overflow: 'hidden',
-    backgroundColor: colors.white,
+    backgroundColor: colors.surface,
   },
-  slideImage: {
+  image: {
     width: '100%',
     height: '100%',
   },
   copy: {
-    paddingHorizontal: 24,
-    paddingTop: 32,
+    paddingHorizontal: 28,
+    paddingTop: 34,
     alignItems: 'center',
   },
-  slideTitle: {
+  title: {
     color: colors.textPrimary,
     fontSize: 38,
-    lineHeight: 46,
+    lineHeight: 43,
     fontWeight: '900',
     textAlign: 'center',
   },
-  slideTitleAr: {
+  subtitle: {
     color: colors.textSecondary,
-    fontSize: 19,
-    fontWeight: '400',
+    fontSize: 15,
+    lineHeight: 22,
+    fontWeight: '600',
     textAlign: 'center',
     marginTop: 14,
   },
@@ -165,51 +162,39 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.screen,
     backgroundColor: colors.dark,
   },
   dots: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    marginBottom: 24,
+    marginBottom: 22,
   },
   dot: {
     height: 6,
     borderRadius: 999,
   },
   dotActive: {
-    width: 58,
+    width: 48,
     backgroundColor: colors.primary,
   },
   dotInactive: {
     width: 8,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surface3,
   },
   button: {
-    width: '100%',
     height: 58,
-    borderRadius: 50,
+    borderRadius: spacing.pill,
     backgroundColor: colors.primary,
     flexDirection: 'row',
-    gap: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.35,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    gap: 10,
   },
   buttonText: {
     color: colors.dark,
-    fontSize: 20,
-    fontWeight: '800',
-  },
-  buttonTextAr: {
-    color: colors.dark,
     fontSize: 18,
-    fontWeight: '400',
+    fontWeight: '900',
   },
 });

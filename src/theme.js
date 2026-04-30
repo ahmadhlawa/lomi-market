@@ -16,6 +16,7 @@ export const colors = {
   error: '#ef4444',
   errorDim: '#ef444422',
   border: 'rgba(255,255,255,0.07)',
+  overlay: 'rgba(0,0,0,0.45)',
 };
 
 export const spacing = {
@@ -33,6 +34,7 @@ export const assets = {
 };
 
 export const formatPrice = (value) => Number(value || 0).toFixed(2);
+export const formatCurrency = (value) => `${formatPrice(value)} ₪`;
 
 export const activeOpacity = 0.75;
 
@@ -89,5 +91,11 @@ export const globalStyles = StyleSheet.create({
     fontWeight: '900',
     fontStyle: 'italic',
     letterSpacing: 1.4,
+  },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
 });

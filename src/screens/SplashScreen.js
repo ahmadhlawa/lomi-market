@@ -6,21 +6,29 @@ import { assets, colors, globalStyles } from '../theme';
 
 export default function SplashScreen({ navigation }) {
   const progress = useRef(new Animated.Value(0)).current;
+  const fade = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.timing(progress, {
-      toValue: 1,
-      duration: 2500,
-      useNativeDriver: false,
-    }).start();
+    Animated.parallel([
+      Animated.timing(fade, {
+        toValue: 1,
+        duration: 650,
+        useNativeDriver: true,
+      }),
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: 2200,
+        useNativeDriver: false,
+      }),
+    ]).start();
 
     const timer = setTimeout(async () => {
       const hasOnboarded = await AsyncStorage.getItem('lomi:onboarded');
       navigation.replace(hasOnboarded ? 'MainApp' : 'Onboarding');
-    }, 2800);
+    }, 2400);
 
     return () => clearTimeout(timer);
-  }, [navigation, progress]);
+  }, [fade, navigation, progress]);
 
   const width = progress.interpolate({
     inputRange: [0, 1],
@@ -29,17 +37,19 @@ export default function SplashScreen({ navigation }) {
 
   return (
     <SafeAreaView edges={['top']} style={[globalStyles.screen, styles.container]}>
-      <View style={styles.center}>
-        <Image source={assets.logo} style={styles.logo} resizeMode="contain" />
+      <Animated.View style={[styles.center, { opacity: fade }]}>
+        <View style={styles.logoPlate}>
+          <Image source={assets.logo} style={styles.logo} resizeMode="contain" />
+        </View>
         <Text style={styles.title}>LOMI MARKET</Text>
-        <Text style={styles.titleAr}>لومي ماركت</Text>
-      </View>
+        <Text style={styles.subtitle}>Fresh groceries, delivered beautifully</Text>
+      </Animated.View>
 
       <View style={styles.bottom}>
         <View style={styles.progressTrack}>
           <Animated.View style={[styles.progressBar, { width }]} />
         </View>
-        <Text style={styles.tagline}>CURATING FRESHNESS</Text>
+        <Text style={styles.tagline}>PREPARING YOUR MARKET</Text>
       </View>
     </SafeAreaView>
   );
@@ -52,48 +62,59 @@ const styles = StyleSheet.create({
   },
   center: {
     alignItems: 'center',
+  },
+  logoPlate: {
+    width: 170,
+    height: 170,
+    borderRadius: 44,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   logo: {
-    width: 180,
-    height: 180,
+    width: 132,
+    height: 132,
   },
   title: {
     color: colors.primary,
-    fontSize: 28,
-    fontWeight: '800',
-    letterSpacing: 3,
-    marginTop: 16,
+    fontSize: 29,
+    fontWeight: '900',
+    fontStyle: 'italic',
+    letterSpacing: 2,
+    marginTop: 22,
   },
-  titleAr: {
-    color: colors.primary,
-    fontSize: 18,
-    fontWeight: '400',
-    marginTop: 4,
+  subtitle: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
   },
   bottom: {
     position: 'absolute',
-    bottom: 40,
+    bottom: 42,
     width: '100%',
-    paddingHorizontal: 30,
-  },
-  tagline: {
-    color: '#555555',
-    fontSize: 11,
-    letterSpacing: 4,
-    textAlign: 'center',
-    marginTop: 16,
+    paddingHorizontal: 32,
   },
   progressTrack: {
     width: '100%',
-    height: 3,
+    height: 4,
     backgroundColor: colors.surface2,
     borderRadius: 999,
     overflow: 'hidden',
   },
   progressBar: {
-    height: 3,
+    height: 4,
     backgroundColor: colors.primary,
     borderRadius: 999,
+  },
+  tagline: {
+    color: colors.textMuted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textAlign: 'center',
+    marginTop: 16,
   },
 });

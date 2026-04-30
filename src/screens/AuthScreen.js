@@ -13,7 +13,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { activeOpacity, assets, colors, globalStyles } from '../theme';
+import { activeOpacity, assets, colors, globalStyles, spacing } from '../theme';
 
 export default function AuthScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -28,118 +28,16 @@ export default function AuthScreen({ navigation }) {
     await AsyncStorage.setItem('lomi:language', value);
   };
 
+  const sendOtp = () => {
+    setStep('otp');
+    setTimeout(() => otpInput.current?.focus(), 250);
+  };
+
   const verify = () => {
     navigation.replace('MainApp');
   };
 
-  const renderLanguageToggle = () => (
-    <View style={styles.languageRow}>
-      <TouchableOpacity activeOpacity={activeOpacity} onPress={() => toggleLanguage('en')}>
-        <Text style={[styles.language, language === 'en' && styles.languageActive]}>
-          ENGLISH
-        </Text>
-      </TouchableOpacity>
-      <Text style={styles.languageSeparator}> • </Text>
-      <TouchableOpacity activeOpacity={activeOpacity} onPress={() => toggleLanguage('ar')}>
-        <Text style={[styles.language, language === 'ar' && styles.languageActive]}>العربية</Text>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderPhone = () => (
-    <>
-      {renderLanguageToggle()}
-      <View style={styles.logoSection}>
-        <View style={styles.logoCircle}>
-          <Image source={assets.logo} style={styles.logoImage} resizeMode="contain" />
-        </View>
-        <Text style={styles.logoText}>LOMI</Text>
-        <Text style={styles.logoTextSecond}>MARKET</Text>
-      </View>
-
-      <View style={styles.welcome}>
-        <Text style={styles.welcomeTitle}>Welcome to Lomi Market</Text>
-        <Text style={styles.welcomeTitleAr}>أهلاً بك في لومي ماركت</Text>
-        <Text style={styles.subtitle}>Enter your phone number to continue</Text>
-        <Text style={styles.subtitleAr}>أدخل رقم هاتفك للمتابعة</Text>
-      </View>
-
-      <View style={styles.phoneContainer}>
-        <TouchableOpacity activeOpacity={activeOpacity} style={styles.countryPicker}>
-          <Text style={styles.flag}>🇵🇸</Text>
-          <Text style={styles.countryCode}>+970</Text>
-          <Ionicons name="chevron-down" size={14} color={colors.textMuted} />
-        </TouchableOpacity>
-        <TextInput
-          value={phone}
-          onChangeText={setPhone}
-          style={styles.phoneInput}
-          placeholder="599 123 456"
-          placeholderTextColor="#444"
-          keyboardType="phone-pad"
-        />
-      </View>
-
-      <TouchableOpacity
-        activeOpacity={activeOpacity}
-        style={styles.mainButton}
-        onPress={() => setStep('otp')}
-      >
-        <Text style={styles.mainButtonText}>Send OTP</Text>
-        <Text style={styles.mainButtonSub}>إرسال رمز التحقق</Text>
-      </TouchableOpacity>
-    </>
-  );
-
-  const renderOtp = () => (
-    <>
-      <View style={styles.otpTop}>
-        <TouchableOpacity
-          activeOpacity={activeOpacity}
-          style={styles.backButton}
-          onPress={() => setStep('phone')}
-        >
-          <Ionicons name="arrow-back" size={25} color={colors.primary} />
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.otpBlock}>
-        <Text style={styles.otpTitle}>Verify Phone</Text>
-        <Text style={styles.otpSubtitle}>Enter the 6-digit code sent to</Text>
-        <Text style={styles.otpPhone}>+970 {phone || '599 123 456'}</Text>
-        <Text style={styles.otpSubtitleAr}>أدخل الرمز المكون من 6 أرقام</Text>
-
-        <Pressable style={styles.otpBoxes} onPress={() => otpInput.current?.focus()}>
-          {Array.from({ length: 6 }).map((_, boxIndex) => {
-            const digit = otp[boxIndex] || '';
-            return (
-              <View key={boxIndex} style={[styles.otpBox, digit && styles.otpBoxFilled]}>
-                <Text style={styles.otpDigit}>{digit}</Text>
-              </View>
-            );
-          })}
-        </Pressable>
-        <TextInput
-          ref={otpInput}
-          value={otp}
-          onChangeText={(value) => setOtp(value.replace(/[^0-9]/g, '').slice(0, 6))}
-          keyboardType="number-pad"
-          maxLength={6}
-          style={styles.hiddenOtpInput}
-          autoFocus
-        />
-
-        <TouchableOpacity activeOpacity={activeOpacity} style={styles.mainButton} onPress={verify}>
-          <Text style={styles.mainButtonText}>Verify</Text>
-          <Text style={styles.mainButtonSub}>تحقق</Text>
-        </TouchableOpacity>
-
-        <Text style={styles.resend}>
-          Didn't receive the code? <Text style={styles.resendLink}>Resend</Text>
-        </Text>
-      </View>
-    </>
-  );
+  const phoneLabel = phone.trim() || '599 123 456';
 
   return (
     <SafeAreaView edges={['top']} style={globalStyles.screen}>
@@ -147,14 +45,105 @@ export default function AuthScreen({ navigation }) {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.keyboard}
       >
-        <View style={styles.content}>{step === 'phone' ? renderPhone() : renderOtp()}</View>
-        <View style={[styles.terms, { bottom: Math.max(insets.bottom, 20) + 10 }]}>
+        <View style={styles.content}>
+          <View style={styles.languageRow}>
+            {['en', 'ar'].map((item) => (
+              <TouchableOpacity
+                key={item}
+                activeOpacity={activeOpacity}
+                style={[styles.languagePill, language === item && styles.languagePillActive]}
+                onPress={() => toggleLanguage(item)}
+              >
+                <Text
+                  style={[styles.languageText, language === item && styles.languageTextActive]}
+                >
+                  {item === 'en' ? 'EN' : 'AR'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <View style={styles.logoSection}>
+            <View style={styles.logoCircle}>
+              <Image source={assets.logo} style={styles.logoImage} resizeMode="contain" />
+            </View>
+            <Text style={styles.logoText}>LOMI MARKET</Text>
+          </View>
+
+          {step === 'phone' ? (
+            <View style={styles.form}>
+              <Text style={styles.title}>Welcome back</Text>
+              <Text style={styles.subtitle}>
+                Enter your phone number to open the customer demo.
+              </Text>
+
+              <View style={styles.phoneContainer}>
+                <View style={styles.countryPicker}>
+                  <Text style={styles.countryCode}>+970</Text>
+                  <Ionicons name="chevron-down" size={15} color={colors.textMuted} />
+                </View>
+                <TextInput
+                  value={phone}
+                  onChangeText={(value) => setPhone(value.replace(/[^0-9 ]/g, ''))}
+                  style={styles.phoneInput}
+                  placeholder="599 123 456"
+                  placeholderTextColor={colors.textMuted}
+                  keyboardType="phone-pad"
+                />
+              </View>
+
+              <TouchableOpacity activeOpacity={activeOpacity} style={styles.mainButton} onPress={sendOtp}>
+                <Text style={styles.mainButtonText}>Send demo code</Text>
+                <Ionicons name="arrow-forward" size={20} color={colors.dark} />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.form}>
+              <TouchableOpacity
+                activeOpacity={activeOpacity}
+                style={styles.backButton}
+                onPress={() => setStep('phone')}
+              >
+                <Ionicons name="arrow-back" size={22} color={colors.primary} />
+              </TouchableOpacity>
+
+              <Text style={styles.title}>Verify phone</Text>
+              <Text style={styles.subtitle}>
+                Use any 6 digits. This is a safe demo verification for +970 {phoneLabel}.
+              </Text>
+
+              <Pressable style={styles.otpBoxes} onPress={() => otpInput.current?.focus()}>
+                {Array.from({ length: 6 }).map((_, boxIndex) => {
+                  const digit = otp[boxIndex] || '';
+                  return (
+                    <View key={boxIndex} style={[styles.otpBox, digit && styles.otpBoxFilled]}>
+                      <Text style={styles.otpDigit}>{digit}</Text>
+                    </View>
+                  );
+                })}
+              </Pressable>
+              <TextInput
+                ref={otpInput}
+                value={otp}
+                onChangeText={(value) => setOtp(value.replace(/[^0-9]/g, '').slice(0, 6))}
+                keyboardType="number-pad"
+                maxLength={6}
+                style={styles.hiddenOtpInput}
+                autoFocus
+              />
+
+              <TouchableOpacity activeOpacity={activeOpacity} style={styles.mainButton} onPress={verify}>
+                <Text style={styles.mainButtonText}>Verify and continue</Text>
+                <Ionicons name="checkmark" size={21} color={colors.dark} />
+              </TouchableOpacity>
+              <Text style={styles.resend}>Did not receive a code? Resend demo code</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={[styles.terms, { bottom: Math.max(insets.bottom, 18) + 8 }]}>
           <Text style={styles.termsText}>
-            By continuing, you agree to our{' '}
-            <Text style={styles.termsLink}>Terms & Conditions</Text>
-          </Text>
-          <Text style={styles.termsTextAr}>
-            بالمتابعة، أنت توافق على <Text style={styles.termsLink}>الشروط والأحكام</Text>
+            Demo only. No real verification, payment, or order is submitted.
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -168,211 +157,137 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: spacing.screen,
   },
   languageRow: {
-    flexDirection: 'row-reverse',
-    alignItems: 'center',
     alignSelf: 'flex-end',
+    flexDirection: 'row',
+    gap: 8,
     marginTop: 18,
   },
-  language: {
-    color: '#555555',
-    fontSize: 13,
-    fontWeight: '700',
-    letterSpacing: 0.4,
+  languagePill: {
+    width: 42,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  languageActive: {
-    color: colors.primary,
+  languagePillActive: {
+    backgroundColor: colors.primary,
   },
-  languageSeparator: {
-    color: '#555555',
-    fontSize: 13,
+  languageText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '900',
+  },
+  languageTextActive: {
+    color: colors.dark,
   },
   logoSection: {
     alignItems: 'center',
-    marginTop: 48,
+    marginTop: 34,
   },
   logoCircle: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: colors.primary,
-    shadowOpacity: 0.25,
-    shadowRadius: 22,
-    elevation: 8,
   },
   logoImage: {
-    width: 70,
-    height: 70,
+    width: 72,
+    height: 72,
   },
   logoText: {
     color: colors.primary,
-    fontSize: 42,
+    fontSize: 32,
     fontWeight: '900',
     fontStyle: 'italic',
-    letterSpacing: 2,
+    letterSpacing: 1,
     marginTop: 18,
   },
-  logoTextSecond: {
-    color: colors.primary,
-    fontSize: 42,
-    fontWeight: '900',
-    fontStyle: 'italic',
-    letterSpacing: 2,
-    marginTop: -8,
+  form: {
+    marginTop: 38,
   },
-  welcome: {
-    marginTop: 32,
-    alignItems: 'center',
-  },
-  welcomeTitle: {
+  title: {
     color: colors.textPrimary,
-    fontSize: 24,
-    fontWeight: '800',
+    fontSize: 30,
+    fontWeight: '900',
     textAlign: 'center',
-  },
-  welcomeTitleAr: {
-    color: colors.textSecondary,
-    fontSize: 17,
-    marginTop: 6,
-    textAlign: 'center',
-    fontWeight: '700',
   },
   subtitle: {
-    color: colors.textMuted,
+    color: colors.textSecondary,
     fontSize: 14,
-    marginTop: 22,
-    textAlign: 'center',
-  },
-  subtitleAr: {
-    color: colors.textMuted,
-    fontSize: 13,
-    marginTop: 4,
+    lineHeight: 21,
+    marginTop: 10,
     textAlign: 'center',
   },
   phoneContainer: {
-    flexDirection: 'row',
     height: 58,
-    borderRadius: 14,
+    borderRadius: 18,
     backgroundColor: colors.surface,
-    overflow: 'hidden',
-    marginTop: 34,
-  },
-  countryPicker: {
-    width: 120,
+    borderWidth: 1,
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    gap: 7,
+    overflow: 'hidden',
+    marginTop: 30,
+  },
+  countryPicker: {
+    width: 104,
+    height: '100%',
     borderRightWidth: 1,
     borderRightColor: colors.surface2,
-  },
-  flag: {
-    fontSize: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
   },
   countryCode: {
     color: colors.textPrimary,
     fontSize: 17,
-    fontWeight: '700',
+    fontWeight: '900',
   },
   phoneInput: {
     flex: 1,
     color: colors.textPrimary,
     fontSize: 18,
-    paddingHorizontal: 18,
-    letterSpacing: 2,
+    fontWeight: '700',
+    paddingHorizontal: 16,
   },
   mainButton: {
     height: 58,
-    borderRadius: 50,
+    borderRadius: spacing.pill,
     backgroundColor: colors.primary,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 10,
     marginTop: 24,
-    shadowColor: colors.primary,
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 8,
   },
   mainButtonText: {
     color: colors.dark,
-    fontSize: 18,
-    fontWeight: '800',
-  },
-  mainButtonSub: {
-    color: colors.dark,
-    fontSize: 14,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  terms: {
-    position: 'absolute',
-    left: 24,
-    right: 24,
-    alignItems: 'center',
-  },
-  termsText: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
-  },
-  termsTextAr: {
-    color: colors.textMuted,
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 8,
-  },
-  termsLink: {
-    color: colors.primary,
-  },
-  otpTop: {
-    paddingTop: 12,
+    fontSize: 17,
+    fontWeight: '900',
   },
   backButton: {
     width: 44,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  otpBlock: {
-    marginTop: 50,
-  },
-  otpTitle: {
-    color: colors.textPrimary,
-    fontSize: 28,
-    fontWeight: '800',
-  },
-  otpSubtitle: {
-    color: colors.textSecondary,
-    fontSize: 15,
-    marginTop: 12,
-  },
-  otpPhone: {
-    color: colors.primary,
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: 5,
-  },
-  otpSubtitleAr: {
-    color: colors.textMuted,
-    fontSize: 14,
-    marginTop: 10,
+    marginBottom: 16,
   },
   otpBoxes: {
     flexDirection: 'row',
-    gap: 10,
-    marginTop: 28,
-    justifyContent: 'center',
+    justifyContent: 'space-between',
+    marginTop: 30,
   },
   otpBox: {
     width: 46,
     height: 54,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.surface2,
@@ -385,7 +300,7 @@ const styles = StyleSheet.create({
   otpDigit: {
     color: colors.primary,
     fontSize: 22,
-    fontWeight: '800',
+    fontWeight: '900',
   },
   hiddenOtpInput: {
     position: 'absolute',
@@ -395,12 +310,20 @@ const styles = StyleSheet.create({
   },
   resend: {
     color: colors.textMuted,
-    fontSize: 14,
+    fontSize: 13,
     textAlign: 'center',
     marginTop: 18,
   },
-  resendLink: {
-    color: colors.primary,
-    fontWeight: '700',
+  terms: {
+    position: 'absolute',
+    left: spacing.screen,
+    right: spacing.screen,
+    alignItems: 'center',
+  },
+  termsText: {
+    color: colors.textMuted,
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
   },
 });

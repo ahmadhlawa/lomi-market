@@ -35,16 +35,7 @@ const navTheme = {
   },
 };
 
-function Badge({ count }) {
-  if (!count) return null;
-  return (
-    <View style={styles.badge}>
-      <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
-    </View>
-  );
-}
-
-function TabIcon({ focused, routeName, count }) {
+function TabIcon({ focused, routeName }) {
   const iconMap = {
     HomeTab: focused ? 'home' : 'home-outline',
     Explore: focused ? 'search' : 'search-outline',
@@ -59,12 +50,6 @@ function TabIcon({ focused, routeName, count }) {
         size={focused ? 24 : 23}
         color={focused ? colors.dark : colors.textMuted}
       />
-      {routeName === 'OrdersTab' ? null : routeName === 'HomeTab' ? null : null}
-      {routeName === 'OrdersTab' && <Badge count={0} />}
-      {routeName === 'HomeTab' && <Badge count={0} />}
-      {routeName === 'Explore' && <Badge count={0} />}
-      {routeName === 'Profile' && <Badge count={0} />}
-      {routeName === 'Cart' && <Badge count={count} />}
     </View>
   );
 }
@@ -104,7 +89,7 @@ function MainTabs() {
         tabBarLabelStyle: styles.tabLabel,
         tabBarIcon: ({ focused }) => (
           <View style={styles.tabIconShell}>
-            <TabIcon focused={focused} routeName={route.name} count={count} />
+            <TabIcon focused={focused} routeName={route.name} />
             {route.name === 'HomeTab' && count > 0 && (
               <View style={styles.cartMiniBadge}>
                 <Text style={styles.cartMiniBadgeText}>{count}</Text>
@@ -187,23 +172,6 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 0 },
     elevation: 8,
-  },
-  badge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: colors.dark,
-    fontSize: 10,
-    fontWeight: '800',
   },
   cartMiniBadge: {
     position: 'absolute',
