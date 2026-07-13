@@ -1,0 +1,21 @@
+Metadata-Version: 2.4
+Name: lomi-market-api
+Version: 1.0.0
+Summary: Lomi Market grocery delivery API
+Requires-Python: >=3.12
+Requires-Dist: fastapi<0.129,>=0.128
+Requires-Dist: uvicorn[standard]<0.39,>=0.38
+Requires-Dist: sqlalchemy<2.1,>=2.0.45
+Requires-Dist: alembic<1.18,>=1.17
+Requires-Dist: pydantic-settings<3,>=2.12
+Requires-Dist: psycopg[binary]<4,>=3.3
+Requires-Dist: PyJWT<3,>=2.10
+Requires-Dist: pwdlib[argon2]<0.4,>=0.3
+Requires-Dist: python-multipart<0.1,>=0.0.20
+Requires-Dist: Pillow<13,>=12.1
+Requires-Dist: email-validator<3,>=2.3
+Provides-Extra: dev
+Requires-Dist: httpx<0.29,>=0.28; extra == "dev"
+Requires-Dist: pytest<10,>=9.0; extra == "dev"
+Requires-Dist: pytest-cov<8,>=7.0; extra == "dev"
+Requires-Dist: ruff<0.15,>=0.14; extra == "dev"

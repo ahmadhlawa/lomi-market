@@ -4,6 +4,7 @@
     "slug": "lomi-market",
     "version": "1.0.2",
     "orientation": "portrait",
+    "scheme": "lomi-market",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
     "splash": {
@@ -15,16 +16,23 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "bundleIdentifier": "ps.lomi.market"
     },
     "android": {
+      "package": "ps.lomi.market",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#111111"
       }
     },
     "plugins": [
-      "expo-font"
-    ]
+      "expo-font",
+      "expo-secure-store",
+      "expo-localization"
+    ],
+    "extra": {
+      "supportsRTL": true
+    }
   }
 }

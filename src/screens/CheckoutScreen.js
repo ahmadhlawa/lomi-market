@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Platform,
   ScrollView,
@@ -22,12 +22,9 @@ import {
   mapRegion,
   spacing,
 } from '../theme';
-
-const deliveryOptions = [
-  { id: 'asap', title: 'ASAP', subtitle: '30-45 min' },
-  { id: 'evening', title: 'Today evening', subtitle: '6:00 PM - 8:00 PM' },
-  { id: 'tomorrow', title: 'Tomorrow morning', subtitle: '9:00 AM - 11:00 AM' },
-];
+import { useQuery } from '@tanstack/react-query';
+import { api } from '../api/client';
+import { mapApiOrder } from '../hooks/useOrders';
 
 function Header({ onBack }) {
   return (
@@ -125,22 +122,34 @@ export default function CheckoutScreen({ navigation }) {
     appliedPromo,
     placeOrder,
   } = useCart();
-  const [payment, setPayment] = useState('card');
-  const [delivery, setDelivery] = useState('asap');
-  const [address] = useState(demoAddress);
+  const [payment, setPayment] = useState('cash');
+  const [delivery, setDelivery] = useState(null);
+  const [addressId, setAddressId] = useState(null);
   const [notes, setNotes] = useState('');
   const [placing, setPlacing] = useState(false);
+  const [submitError, setSubmitError] = useState('');
+  const addressesQuery = useQuery({ queryKey: ['addresses'], queryFn: () => api('/addresses') });
+  const slotsQuery = useQuery({ queryKey: ['delivery-slots'], queryFn: () => api('/catalog/delivery-slots') });
+  const deliveryOptions = useMemo(() => (slotsQuery.data || []).map((slot) => ({ id: slot.id, title: slot.label_en, subtitle: `${slot.start_time} - ${slot.end_time}` })), [slotsQuery.data]);
+  useEffect(() => { if (!addressId && addressesQuery.data?.length) setAddressId((addressesQuery.data.find((item) => item.is_default) || addressesQuery.data[0]).id); }, [addressId, addressesQuery.data]);
+  useEffect(() => { if (!delivery && deliveryOptions.length) setDelivery(deliveryOptions[0].id); }, [delivery, deliveryOptions]);
+  const rawAddress = addressesQuery.data?.find((item) => item.id === addressId);
+  const address = rawAddress ? { title: rawAddress.label, line: rawAddress.line1, ar: rawAddress.city } : demoAddress;
 
-  const submitOrder = () => {
-    if (placing || count === 0) return;
+  const submitOrder = async () => {
+    if (placing || count === 0 || !addressId) return;
     setPlacing(true);
-    const order = placeOrder({ payment, notes, delivery, address });
-    setTimeout(() => {
+    setSubmitError('');
+    try {
+      const order = mapApiOrder(await placeOrder({ addressId, deliverySlotId: delivery, notes }));
       navigation.getParent()?.navigate('OrdersTab', {
         screen: 'OrderTracking',
         params: { order },
       });
-    }, 650);
+    } catch (error) {
+      setSubmitError(error.message);
+      setPlacing(false);
+    }
   };
 
   return (
@@ -148,7 +157,7 @@ export default function CheckoutScreen({ navigation }) {
       <Header onBack={() => navigation.goBack()} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: 30 + insets.bottom }]}>
         <View style={styles.section}>
-          <SectionTitle title="Delivery address" action="Demo address" />
+          <SectionTitle title="Delivery address" action={rawAddress ? rawAddress.label : 'Required'} />
           <View style={styles.mapPreview}>
             <SafeMap />
           </View>
@@ -160,6 +169,8 @@ export default function CheckoutScreen({ navigation }) {
               <Text style={styles.addressAr}>{address.ar}</Text>
             </View>
           </View>
+          {!rawAddress && <TouchableOpacity style={styles.addAddressButton} onPress={() => navigation.navigate('Addresses')}><Text style={styles.addAddressText}>Add a delivery address</Text></TouchableOpacity>}
+          {!!addressesQuery.data?.length && <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.addressChoices}>{addressesQuery.data.map((item) => <TouchableOpacity key={item.id} style={[styles.addressChoice, addressId === item.id && styles.addressChoiceActive]} onPress={() => setAddressId(item.id)}><Text style={styles.addressChoiceText}>{item.label}</Text></TouchableOpacity>)}</ScrollView>}
         </View>
 
         <View style={styles.section}>
@@ -179,14 +190,7 @@ export default function CheckoutScreen({ navigation }) {
         <View style={styles.section}>
           <SectionTitle title="Payment method" />
           <OptionCard
-            selected={payment === 'card'}
-            icon="card-outline"
-            title="Card ending 4242"
-            subtitle="Demo payment method"
-            onPress={() => setPayment('card')}
-          />
-          <OptionCard
-            selected={payment === 'cash'}
+            selected
             icon="cash-outline"
             title="Cash on delivery"
             subtitle="Pay when the order arrives"
@@ -232,19 +236,20 @@ export default function CheckoutScreen({ navigation }) {
             <Text style={styles.totalValue}>{formatCurrency(total)}</Text>
           </View>
           <Text style={styles.invoiceFoot}>
-            {payment === 'cash' ? 'Cash on delivery' : 'Card ending 4242'} • {deliveryOptions.find((item) => item.id === delivery)?.title}
+            Cash on delivery • {deliveryOptions.find((item) => item.id === delivery)?.title}
           </Text>
         </View>
 
         <TouchableOpacity
           activeOpacity={activeOpacity}
-          disabled={placing || count === 0}
-          style={[styles.placeButton, (placing || count === 0) && styles.placeButtonDisabled]}
+          disabled={placing || count === 0 || !addressId}
+          style={[styles.placeButton, (placing || count === 0 || !addressId) && styles.placeButtonDisabled]}
           onPress={submitOrder}
         >
           <Text style={styles.placeText}>{placing ? 'Creating order...' : 'Place order'}</Text>
           <Ionicons name="arrow-forward" size={18} color={colors.dark} />
         </TouchableOpacity>
+        {!!submitError && <Text accessibilityRole="alert" style={styles.submitError}>{submitError}</Text>}
       </ScrollView>
     </SafeAreaView>
   );
@@ -305,6 +310,12 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     writingDirection: 'rtl',
   },
+  addAddressButton: { marginTop: 10, borderRadius: 16, borderWidth: 1, borderColor: colors.primary, padding: 13, alignItems: 'center' },
+  addAddressText: { color: colors.primary, fontWeight: '900' },
+  addressChoices: { gap: 8, paddingTop: 10 },
+  addressChoice: { borderRadius: 20, backgroundColor: colors.surface, paddingHorizontal: 14, paddingVertical: 8, borderWidth: 1, borderColor: colors.border },
+  addressChoiceActive: { borderColor: colors.primary },
+  addressChoiceText: { color: colors.textPrimary, fontWeight: '800' },
   optionCard: {
     marginTop: 12,
     backgroundColor: colors.surface,
@@ -391,4 +402,5 @@ const styles = StyleSheet.create({
   },
   placeButtonDisabled: { opacity: 0.7 },
   placeText: { color: colors.dark, fontSize: 16, fontWeight: '900' },
+  submitError: { color: colors.error, textAlign: 'center', marginHorizontal: spacing.screen, marginTop: 12, fontWeight: '700' },
 });

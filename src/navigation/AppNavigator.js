@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { colors, spacing } from '../theme';
 import { useCart } from '../context/CartContext';
+import { useLanguage } from '../context/LanguageContext';
 import SplashScreen from '../screens/SplashScreen';
 import OnboardingScreen from '../screens/OnboardingScreen';
 import AuthScreen from '../screens/AuthScreen';
@@ -17,6 +18,8 @@ import CheckoutScreen from '../screens/CheckoutScreen';
 import OrderHistoryScreen from '../screens/OrderHistoryScreen';
 import OrderTrackingScreen from '../screens/OrderTrackingScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import AddressesScreen from '../screens/AddressesScreen';
+import LegalScreen from '../screens/LegalScreen';
 
 const RootStack = createNativeStackNavigator();
 const HomeStack = createNativeStackNavigator();
@@ -61,6 +64,8 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="ProductDetail" component={ProductDetailScreen} />
       <HomeStack.Screen name="Cart" component={CartScreen} />
       <HomeStack.Screen name="Checkout" component={CheckoutScreen} />
+      <HomeStack.Screen name="Addresses" component={AddressesScreen} />
+      <HomeStack.Screen name="Legal" component={LegalScreen} />
     </HomeStack.Navigator>
   );
 }
@@ -76,6 +81,7 @@ function OrdersStackNavigator() {
 
 function MainTabs() {
   const { count } = useCart();
+  const { t } = useLanguage();
 
   return (
     <Tab.Navigator
@@ -102,15 +108,15 @@ function MainTabs() {
       <Tab.Screen
         name="HomeTab"
         component={HomeStackNavigator}
-        options={{ title: 'Home' }}
+        options={{ title: t('nav.home') }}
       />
-      <Tab.Screen name="Explore" component={ExploreScreen} />
+      <Tab.Screen name="Explore" component={ExploreScreen} options={{ title: t('nav.explore') }} />
       <Tab.Screen
         name="OrdersTab"
         component={OrdersStackNavigator}
-        options={{ title: 'Orders' }}
+        options={{ title: t('nav.orders') }}
       />
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: t('nav.profile') }} />
     </Tab.Navigator>
   );
 }

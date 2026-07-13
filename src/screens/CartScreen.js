@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   FlatList,
+  ActivityIndicator,
   Image,
   StyleSheet,
   Text,
@@ -65,6 +66,9 @@ export default function CartScreen({ navigation }) {
     total,
     promoCode,
     promoStatus,
+    loading,
+    error,
+    refetch,
     updateQuantity,
     removeItem,
     applyPromoCode,
@@ -88,13 +92,17 @@ export default function CartScreen({ navigation }) {
         </View>
       </View>
 
-      {isEmpty ? (
+      {loading ? (
+        <View style={styles.empty}><ActivityIndicator color={colors.primary} size="large" /><Text style={styles.emptySubtitle}>Loading your cart…</Text></View>
+      ) : error ? (
+        <View style={styles.empty}><Ionicons name="cloud-offline-outline" size={46} color={colors.error} /><Text style={styles.emptyTitle}>Cart unavailable</Text><Text style={styles.emptySubtitle}>{error.message}</Text><TouchableOpacity style={styles.continueButton} onPress={() => refetch()}><Text style={styles.continueText}>Try again</Text></TouchableOpacity></View>
+      ) : isEmpty ? (
         <View style={styles.empty}>
           <View style={styles.emptyIcon}>
             <Ionicons name="basket-outline" size={46} color={colors.primary} />
           </View>
           <Text style={styles.emptyTitle}>Your cart is empty</Text>
-          <Text style={styles.emptySubtitle}>Add products from Home or Explore to build a realistic demo basket.</Text>
+          <Text style={styles.emptySubtitle}>Add products from Home or Explore to start your order.</Text>
           <TouchableOpacity activeOpacity={activeOpacity} style={styles.continueButton} onPress={() => navigation.navigate('Home')}>
             <Text style={styles.continueText}>Continue shopping</Text>
           </TouchableOpacity>

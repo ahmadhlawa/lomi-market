@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import {
   FlatList,
+  ActivityIndicator,
   Image,
   StyleSheet,
   Text,
@@ -10,29 +11,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { categories, products } from '../data/mockData';
 import { useCart } from '../context/CartContext';
 import { activeOpacity, colors, formatCurrency, globalStyles, spacing } from '../theme';
-
-const visibleCategories = categories.filter(
-  (category) => category.id === 'all' || products.some((product) => product.categoryId === category.id)
-);
-
-function matchesSearch(product, query) {
-  const lower = query.trim().toLowerCase();
-  if (!lower) return true;
-  return [
-    product.name,
-    product.nameAr,
-    product.categoryName,
-    product.categoryNameAr,
-    product.description,
-    product.descriptionAr,
-    product.freshnessTag,
-  ]
-    .filter(Boolean)
-    .some((value) => String(value).toLowerCase().includes(lower));
-}
+import { useCategories, useDebouncedValue, useProducts } from '../hooks/useCatalog';
 
 function ProductRow({ item, onAdd, onOpen }) {
   const hasDiscount = item.oldPrice && item.oldPrice > item.price;
@@ -70,13 +51,11 @@ export default function ExploreScreen({ navigation }) {
   const [query, setQuery] = useState('');
   const [categoryId, setCategoryId] = useState('all');
   const { addItem } = useCart();
-
-  const filtered = useMemo(() => {
-    return products.filter((product) => {
-      const inCategory = categoryId === 'all' || product.categoryId === categoryId;
-      return inCategory && matchesSearch(product, query);
-    });
-  }, [categoryId, query]);
+  const debouncedQuery = useDebouncedValue(query);
+  const categoriesQuery = useCategories();
+  const productsQuery = useProducts({ search: debouncedQuery, categoryId, pageSize: 50 });
+  const visibleCategories = categoriesQuery.data || [];
+  const filtered = productsQuery.data?.items || [];
 
   return (
     <SafeAreaView edges={['top']} style={globalStyles.screen}>
@@ -134,6 +113,9 @@ export default function ExploreScreen({ navigation }) {
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
+        refreshing={productsQuery.isRefetching}
+        onRefresh={() => productsQuery.refetch()}
+        ListHeaderComponent={productsQuery.isLoading ? <ActivityIndicator color={colors.primary} style={{ marginVertical: 28 }} /> : null}
         ListEmptyComponent={
           <View style={styles.empty}>
             <Ionicons name="search" size={44} color={colors.surface3} />

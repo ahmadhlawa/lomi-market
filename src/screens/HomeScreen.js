@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import {
   Image,
+  ActivityIndicator,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,16 +13,13 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { categories, products } from '../data/mockData';
 import { useCart } from '../context/CartContext';
 import { activeOpacity, colors, formatCurrency, globalStyles, shadow, spacing } from '../theme';
+import { useCategories, useProducts } from '../hooks/useCatalog';
+import { useLanguage } from '../context/LanguageContext';
 
 const bannerImage =
   'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1000&q=85';
-
-const visibleCategories = categories.filter(
-  (category) => category.id === 'all' || products.some((product) => product.categoryId === category.id)
-);
 
 function matchesSearch(product, query) {
   const lower = query.trim().toLowerCase();
@@ -130,6 +129,11 @@ function ProductSection({ title, subtitle, data, onOpen, onAdd }) {
 
 export default function HomeScreen({ navigation }) {
   const { count, addItem } = useCart();
+  const { language, t } = useLanguage();
+  const categoriesQuery = useCategories();
+  const productsQuery = useProducts({ pageSize: 100 });
+  const categories = categoriesQuery.data || [];
+  const products = productsQuery.data?.items || [];
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [query, setQuery] = useState('');
 
@@ -148,25 +152,28 @@ export default function HomeScreen({ navigation }) {
     []
   );
   const openProduct = (product) => navigation.navigate('ProductDetail', { product });
-  const selectedLabel =
-    visibleCategories.find((category) => category.id === selectedCategory)?.en || 'All';
+  const visibleCategories = categories;
+  const selectedLabel = visibleCategories.find((category) => category.id === selectedCategory)?.[language === 'ar' ? 'ar' : 'en'] || 'All';
+
+  if ((categoriesQuery.isLoading || productsQuery.isLoading) && !products.length) {
+    return <SafeAreaView style={[globalStyles.screen, styles.loading]}><ActivityIndicator color={colors.primary} size="large" /><Text style={styles.loadingText}>{t('common.loading')}</Text></SafeAreaView>;
+  }
+  if (productsQuery.isError && !products.length) {
+    return <SafeAreaView style={[globalStyles.screen, styles.loading]}><Ionicons name="cloud-offline-outline" color={colors.error} size={44} /><Text style={styles.loadingText}>{productsQuery.error.message}</Text><TouchableOpacity style={styles.shopButton} onPress={() => productsQuery.refetch()}><Text style={styles.shopButtonText}>{t('common.retry')}</Text></TouchableOpacity></SafeAreaView>;
+  }
 
   return (
     <SafeAreaView edges={['top']} style={globalStyles.screen}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
+      <ScrollView refreshControl={<RefreshControl tintColor={colors.primary} refreshing={productsQuery.isRefetching} onRefresh={() => { categoriesQuery.refetch(); productsQuery.refetch(); }} />} showsVerticalScrollIndicator={false} contentContainerStyle={styles.content}>
         <View style={styles.header}>
           <View>
             <View style={styles.locationRow}>
               <Ionicons name="location" size={16} color={colors.primary} />
-              <Text style={styles.locationKicker}>DELIVER TO</Text>
+              <Text style={styles.locationKicker}>{t('home.deliverTo')}</Text>
             </View>
-            <Text style={styles.location}>Ramallah, Palestine</Text>
+            <Text style={styles.location}>{t('home.location')}</Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity activeOpacity={activeOpacity} style={styles.iconButton}>
-              <Ionicons name="notifications-outline" size={24} color={colors.textSecondary} />
-              <View style={styles.notificationDot} />
-            </TouchableOpacity>
             <CartHeaderButton count={count} onPress={() => navigation.navigate('Cart')} />
           </View>
         </View>
@@ -177,7 +184,7 @@ export default function HomeScreen({ navigation }) {
             value={query}
             onChangeText={setQuery}
             style={styles.searchInput}
-            placeholder="Search tomatoes, labneh, olive oil..."
+            placeholder={t('home.search')}
             placeholderTextColor={colors.textMuted}
           />
           {!!query && (
@@ -187,7 +194,7 @@ export default function HomeScreen({ navigation }) {
           )}
         </View>
 
-        <TouchableOpacity activeOpacity={activeOpacity} style={[styles.banner, shadow]}>
+        <TouchableOpacity activeOpacity={activeOpacity} style={[styles.banner, shadow]} onPress={() => navigation.getParent()?.navigate('Explore')}>
           <Image source={{ uri: bannerImage }} style={styles.bannerImage} resizeMode="cover" />
           <LinearGradient
             colors={['rgba(253,202,0,0.98)', 'rgba(253,202,0,0.78)', 'rgba(253,202,0,0.05)']}
@@ -207,7 +214,7 @@ export default function HomeScreen({ navigation }) {
         </TouchableOpacity>
 
         <View style={styles.categoriesHeader}>
-          <Text style={styles.categoriesTitle}>Categories</Text>
+          <Text style={styles.categoriesTitle}>{t('home.categories')}</Text>
           <Text style={styles.seeAll}>{filteredProducts.length} items</Text>
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoryScroll}>
@@ -222,23 +229,25 @@ export default function HomeScreen({ navigation }) {
         </ScrollView>
 
         <ProductSection
-          title={selectedCategory === 'all' && !query ? 'Recommended for you' : selectedLabel}
+          title={selectedCategory === 'all' && !query ? t('home.recommended') : selectedLabel}
           subtitle={query ? `Search results for "${query}"` : 'Filtered from the live demo catalog'}
           data={filteredProducts}
           onOpen={openProduct}
           onAdd={addItem}
         />
 
-        <ProductSection title="Flash Deals" subtitle="Limited-time grocery offers" data={flashDeals} onOpen={openProduct} onAdd={addItem} />
-        <ProductSection title="Best Sellers" subtitle="Customer favorites this week" data={bestSellers} onOpen={openProduct} onAdd={addItem} />
-        <ProductSection title="Featured Picks" subtitle="Fresh baskets curated for the demo" data={featured} onOpen={openProduct} onAdd={addItem} />
-        <ProductSection title="Offers" subtitle="Discounted essentials and pantry deals" data={offers} onOpen={openProduct} onAdd={addItem} />
+        <ProductSection title={t('home.deals')} subtitle="Limited-time grocery offers" data={flashDeals} onOpen={openProduct} onAdd={addItem} />
+        <ProductSection title={t('home.best')} subtitle="Customer favorites this week" data={bestSellers} onOpen={openProduct} onAdd={addItem} />
+        <ProductSection title={t('home.featured')} subtitle="Fresh baskets selected by Lomi Market" data={featured} onOpen={openProduct} onAdd={addItem} />
+        <ProductSection title={t('home.deals')} subtitle="Discounted essentials and pantry deals" data={offers} onOpen={openProduct} onAdd={addItem} />
       </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  loading: { alignItems: 'center', justifyContent: 'center' },
+  loadingText: { color: colors.textSecondary, marginTop: 12, fontWeight: '700' },
   content: { paddingBottom: 110 },
   header: {
     paddingHorizontal: spacing.screen,

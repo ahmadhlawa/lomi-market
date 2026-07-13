@@ -6,6 +6,9 @@ web-build/
 .env.local
 *.log
 *.backup.json
+.verify-*/
+.env.production
+coverage/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

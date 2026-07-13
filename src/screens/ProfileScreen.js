@@ -1,16 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { Image, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useState } from 'react';
+import { Image, Linking, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { activeOpacity, colors, globalStyles, spacing } from '../theme';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { api, jsonOptions } from '../api/client';
 
 const avatarUrl =
   'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?auto=format&fit=crop&w=400&q=80';
 
 function MenuRow({ icon, title, subtitle, danger = false, right, onPress }) {
+  const Container = onPress ? TouchableOpacity : View;
   return (
-    <TouchableOpacity activeOpacity={activeOpacity} style={styles.menuRow} onPress={onPress}>
+    <Container {...(onPress ? { activeOpacity, onPress } : {})} style={styles.menuRow}>
       <View style={[styles.menuIcon, danger && styles.menuIconDanger]}>
         <Ionicons name={icon} size={19} color={danger ? colors.error : colors.primary} />
       </View>
@@ -19,7 +22,7 @@ function MenuRow({ icon, title, subtitle, danger = false, right, onPress }) {
         {!!subtitle && <Text style={styles.menuSubtitle}>{subtitle}</Text>}
       </View>
       {right || <Ionicons name="chevron-forward" size={20} color={colors.surface3} />}
-    </TouchableOpacity>
+    </Container>
   );
 }
 
@@ -42,25 +45,26 @@ function LanguagePill({ value, onChange }) {
   );
 }
 
-export default function ProfileScreen() {
-  const [notifications, setNotifications] = useState(true);
-  const [language, setLanguage] = useState('en');
+export default function ProfileScreen({ navigation }) {
+  const auth = useAuth();
+  const { language, setLanguage, t } = useLanguage();
+  const [notifications, setNotifications] = useState(auth.user?.notifications_enabled ?? true);
   const [loggedOut, setLoggedOut] = useState(false);
 
-  useEffect(() => {
-    AsyncStorage.getItem('lomi:language').then((stored) => {
-      if (stored) setLanguage(stored);
-    });
-  }, []);
-
   const changeLanguage = async (value) => {
-    setLanguage(value);
-    await AsyncStorage.setItem('lomi:language', value);
+    await setLanguage(value);
+    await api('/auth/me', jsonOptions('PATCH', { language: value }));
   };
 
-  const logoutDemo = () => {
+  const logout = async () => {
     setLoggedOut(true);
-    setTimeout(() => setLoggedOut(false), 1500);
+    await auth.logout();
+    navigation.getParent()?.replace('Auth');
+  };
+
+  const changeNotifications = async (value) => {
+    setNotifications(value);
+    try { await api('/auth/me', jsonOptions('PATCH', { notifications_enabled: value })); } catch { setNotifications(!value); }
   };
 
   return (
@@ -74,7 +78,7 @@ export default function ProfileScreen() {
       {loggedOut && (
         <View style={styles.toast}>
           <Ionicons name="information-circle" size={17} color={colors.primary} />
-          <Text style={styles.toastText}>Demo logout only</Text>
+          <Text style={styles.toastText}>Signing out…</Text>
         </View>
       )}
 
@@ -82,18 +86,15 @@ export default function ProfileScreen() {
         <View style={styles.avatarSection}>
           <View style={styles.avatarWrap}>
             <Image source={{ uri: avatarUrl }} style={styles.avatar} />
-            <TouchableOpacity activeOpacity={activeOpacity} style={styles.editAvatar}>
-              <Ionicons name="pencil" size={14} color={colors.dark} />
-            </TouchableOpacity>
           </View>
-          <Text style={styles.name}>Sami Ahmad</Text>
-          <Text style={styles.phone}>+970 599 123 456</Text>
-          <Text style={styles.demoBadge}>Customer demo profile</Text>
+          <Text style={styles.name}>{auth.user?.full_name || 'Lomi Customer'}</Text>
+          <Text style={styles.phone}>{auth.user?.phone}</Text>
+          <Text style={styles.demoBadge}>Lomi Market customer</Text>
         </View>
 
         <View style={styles.menuGroup}>
-          <MenuRow icon="location-outline" title="Addresses" subtitle="Home, office, and saved delivery spots" />
-          <MenuRow icon="card-outline" title="Payment methods" subtitle="Cards, cash, and wallet settings" />
+          <MenuRow icon="location-outline" title={t('profile.addresses')} subtitle="Home and saved delivery spots" onPress={() => navigation.navigate('HomeTab', { screen: 'Addresses' })} />
+          <MenuRow icon="cash-outline" title="Payment method" subtitle="Cash on delivery" right={<Ionicons name="checkmark-circle" size={22} color={colors.success} />} />
         </View>
 
         <View style={styles.menuGroup}>
@@ -104,7 +105,7 @@ export default function ProfileScreen() {
             right={
               <Switch
                 value={notifications}
-                onValueChange={setNotifications}
+                onValueChange={changeNotifications}
                 trackColor={{ false: colors.surface2, true: colors.primary }}
                 thumbColor={colors.white}
               />
@@ -112,20 +113,21 @@ export default function ProfileScreen() {
           />
           <MenuRow
             icon="globe-outline"
-            title="Language"
+            title={t('profile.language')}
             subtitle="English / العربية"
             right={<LanguagePill value={language} onChange={changeLanguage} />}
           />
         </View>
 
         <View style={styles.menuGroup}>
-          <MenuRow icon="help-circle-outline" title="Help & support" subtitle="FAQ and customer care" />
-          <MenuRow icon="log-out-outline" title="Logout" subtitle="Safe demo action" danger onPress={logoutDemo} />
+          <MenuRow icon="document-text-outline" title="Terms & privacy" subtitle="Store policies" onPress={() => navigation.navigate('HomeTab', { screen: 'Legal' })} />
+          <MenuRow icon="help-circle-outline" title={t('profile.support')} subtitle="Call customer care" onPress={() => Linking.openURL('tel:+970599000000')} />
+          <MenuRow icon="log-out-outline" title={t('profile.logout')} subtitle="Sign out on this device" danger onPress={logout} />
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerBrand}>LOMI MARKET</Text>
-          <Text style={styles.version}>Demo version 1.0.0</Text>
+          <Text style={styles.version}>Version 1.0.2</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

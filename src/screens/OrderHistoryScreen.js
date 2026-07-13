@@ -2,9 +2,11 @@ import React, { useMemo, useState } from 'react';
 import { FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { orders } from '../data/mockData';
 import { useCart } from '../context/CartContext';
 import { activeOpacity, colors, formatCurrency, globalStyles, spacing } from '../theme';
+import { useOrders } from '../hooks/useOrders';
+import { api } from '../api/client';
+import { useQueryClient } from '@tanstack/react-query';
 
 const tabs = [
   { id: 'active', label: 'Active' },
@@ -12,7 +14,7 @@ const tabs = [
   { id: 'cancelled', label: 'Cancelled' },
 ];
 
-const activeStatuses = ['placed', 'preparing', 'picked_up', 'on_the_way'];
+const activeStatuses = ['placed', 'confirmed', 'preparing', 'picked_up', 'out_for_delivery'];
 
 function statusInfo(status) {
   const map = {
@@ -20,6 +22,8 @@ function statusInfo(status) {
     preparing: { label: 'Preparing', color: colors.primary, bg: colors.primaryDim },
     picked_up: { label: 'Picked up', color: colors.primary, bg: colors.primaryDim },
     on_the_way: { label: 'On the way', color: colors.primary, bg: colors.primaryDim },
+    out_for_delivery: { label: 'Out for delivery', color: colors.primary, bg: colors.primaryDim },
+    confirmed: { label: 'Confirmed', color: colors.primary, bg: colors.primaryDim },
     delivered: { label: 'Delivered', color: colors.success, bg: colors.successDim },
     cancelled: { label: 'Cancelled', color: colors.error, bg: colors.errorDim },
   };
@@ -79,12 +83,11 @@ function OrderCard({ item, onTrack, onReorder }) {
 
 export default function OrderHistoryScreen({ navigation }) {
   const [tab, setTab] = useState('active');
-  const { count, lastOrder, addItem } = useCart();
+  const { count } = useCart();
+  const queryClient = useQueryClient();
+  const ordersQuery = useOrders();
 
-  const allOrders = useMemo(() => {
-    if (!lastOrder) return orders;
-    return [lastOrder, ...orders.filter((order) => order.id !== lastOrder.id)];
-  }, [lastOrder]);
+  const allOrders = ordersQuery.data || [];
 
   const filteredOrders = useMemo(() => {
     if (tab === 'completed') return allOrders.filter((order) => order.status === 'delivered');
@@ -93,8 +96,10 @@ export default function OrderHistoryScreen({ navigation }) {
   }, [allOrders, tab]);
 
   const reorder = (order) => {
-    order.items?.forEach((item) => addItem(item.product, item.quantity));
-    navigation.getParent()?.navigate('HomeTab', { screen: 'Cart' });
+    api(`/orders/${order.id}/reorder`, { method: 'POST' }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ['cart'] });
+      navigation.getParent()?.navigate('HomeTab', { screen: 'Cart' });
+    });
   };
 
   return (
@@ -137,6 +142,8 @@ export default function OrderHistoryScreen({ navigation }) {
 
       <FlatList
         data={filteredOrders}
+        refreshing={ordersQuery.isRefetching}
+        onRefresh={() => ordersQuery.refetch()}
         keyExtractor={(item) => item.id}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}

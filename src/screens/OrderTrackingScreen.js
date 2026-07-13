@@ -1,9 +1,9 @@
 import React, { useMemo } from 'react';
-import { Image, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, Linking, Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker } from 'react-native-maps';
 import { Ionicons } from '@expo/vector-icons';
-import { demoAddress, driver as defaultDriver, getTrackingSteps, orders } from '../data/mockData';
+import { demoAddress, driver as defaultDriver, getTrackingSteps } from '../data/mockData';
 import {
   activeOpacity,
   colors,
@@ -13,8 +13,6 @@ import {
   mapRegion,
   spacing,
 } from '../theme';
-
-const activeStatuses = ['placed', 'preparing', 'picked_up', 'on_the_way'];
 
 function SafeMap() {
   if (Platform.OS === 'web') {
@@ -82,14 +80,16 @@ function TrackingStep({ item, isLast }) {
 }
 
 export default function OrderTrackingScreen({ navigation, route }) {
-  const fallbackOrder = orders.find((item) => activeStatuses.includes(item.status)) || orders[0];
-  const order = route.params?.order || fallbackOrder;
+  const order = route.params?.order;
+  const steps = useMemo(
+    () => order ? (order.trackingSteps || getTrackingSteps(order.status)) : [],
+    [order]
+  );
+  if (!order) {
+    return <SafeAreaView style={[globalStyles.screen, styles.missing]}><Text style={styles.receiptTitle}>Order unavailable</Text><TouchableOpacity style={styles.helpButton} onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={18} color={colors.dark} /></TouchableOpacity></SafeAreaView>;
+  }
   const driver = order.driver || defaultDriver;
   const address = typeof order.address === 'string' ? { ...demoAddress, title: order.address } : order.address || demoAddress;
-  const steps = useMemo(
-    () => order.trackingSteps || getTrackingSteps(order.status),
-    [order.status, order.trackingSteps]
-  );
   const currentStep = steps.find((step) => step.state === 'active')?.en || 'Order placed';
 
   return (
@@ -99,7 +99,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
           <Ionicons name="arrow-back" size={23} color={colors.primary} />
         </TouchableOpacity>
         <Text style={styles.brand}>LOMI MARKET</Text>
-        <TouchableOpacity activeOpacity={activeOpacity} style={styles.helpButton}>
+        <TouchableOpacity accessibilityLabel="Call Lomi Market support" activeOpacity={activeOpacity} style={styles.helpButton} onPress={() => Linking.openURL('tel:+970599000000')}>
           <Ionicons name="call-outline" size={18} color={colors.dark} />
         </TouchableOpacity>
       </View>
@@ -143,7 +143,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
               <Text style={styles.car}>{driver.vehicle}</Text>
               <Text style={styles.driverPhone}>{driver.phone}</Text>
             </View>
-            <TouchableOpacity activeOpacity={activeOpacity} style={styles.callButton}>
+            <TouchableOpacity accessibilityLabel={`Call ${driver.name}`} activeOpacity={activeOpacity} style={styles.callButton} onPress={() => Linking.openURL(`tel:${driver.phone.replace(/\s/g, '')}`)}>
               <Ionicons name="call" size={20} color={colors.dark} />
             </TouchableOpacity>
           </View>
@@ -203,6 +203,7 @@ export default function OrderTrackingScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  missing: { alignItems: 'center', justifyContent: 'center', gap: 16 },
   header: {
     height: 64,
     paddingHorizontal: spacing.screen,

@@ -3,9 +3,9 @@ import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
-import { products } from '../data/mockData';
 import { useCart } from '../context/CartContext';
 import { activeOpacity, colors, formatCurrency, globalStyles, spacing } from '../theme';
+import { useProducts } from '../hooks/useCatalog';
 
 function RatingStars({ rating }) {
   return (
@@ -34,19 +34,21 @@ function RelatedCard({ item, onPress, onAdd }) {
 
 export default function ProductDetailScreen({ navigation, route }) {
   const insets = useSafeAreaInsets();
-  const product = route.params?.product || products[0];
+  const product = route.params?.product;
   const { count, addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   const [added, setAdded] = useState(false);
-  const hasDiscount = product.oldPrice && product.oldPrice > product.price;
+  const relatedQuery = useProducts({ categoryId: product?.categoryId || 'all', pageSize: 8 });
+  const hasDiscount = product?.oldPrice && product.oldPrice > product.price;
 
   const related = useMemo(
-    () =>
-      products
-        .filter((item) => item.id !== product.id && item.categoryId === product.categoryId)
-        .slice(0, 6),
-    [product.categoryId, product.id]
+    () => (relatedQuery.data?.items || []).filter((item) => item.id !== product?.id).slice(0, 6),
+    [product?.id, relatedQuery.data]
   );
+
+  if (!product) {
+    return <SafeAreaView style={[globalStyles.screen, styles.missing]}><Text style={styles.descriptionTitle}>Product unavailable</Text><TouchableOpacity style={styles.addToCartButton} onPress={() => navigation.goBack()}><Text style={styles.addToCartText}>Go back</Text></TouchableOpacity></SafeAreaView>;
+  }
 
   const addToCart = () => {
     addItem(product, quantity);
@@ -182,6 +184,7 @@ export default function ProductDetailScreen({ navigation, route }) {
 }
 
 const styles = StyleSheet.create({
+  missing: { alignItems: 'center', justifyContent: 'center', padding: spacing.screen, gap: 16 },
   header: {
     position: 'absolute',
     zIndex: 10,

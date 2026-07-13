@@ -3,8 +3,10 @@ import { Animated, Image, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { assets, colors, globalStyles } from '../theme';
+import { useAuth } from '../context/AuthContext';
 
 export default function SplashScreen({ navigation }) {
+  const { ready, authenticated } = useAuth();
   const progress = useRef(new Animated.Value(0)).current;
   const fade = useRef(new Animated.Value(0)).current;
 
@@ -22,13 +24,14 @@ export default function SplashScreen({ navigation }) {
       }),
     ]).start();
 
+    if (!ready) return undefined;
     const timer = setTimeout(async () => {
       const hasOnboarded = await AsyncStorage.getItem('lomi:onboarded');
-      navigation.replace(hasOnboarded ? 'MainApp' : 'Onboarding');
+      navigation.replace(hasOnboarded ? (authenticated ? 'MainApp' : 'Auth') : 'Onboarding');
     }, 2400);
 
     return () => clearTimeout(timer);
-  }, [fade, navigation, progress]);
+  }, [authenticated, fade, navigation, progress, ready]);
 
   const width = progress.interpolate({
     inputRange: [0, 1],

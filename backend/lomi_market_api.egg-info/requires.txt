@@ -1,0 +1,17 @@
+fastapi<0.129,>=0.128
+uvicorn[standard]<0.39,>=0.38
+sqlalchemy<2.1,>=2.0.45
+alembic<1.18,>=1.17
+pydantic-settings<3,>=2.12
+psycopg[binary]<4,>=3.3
+PyJWT<3,>=2.10
+pwdlib[argon2]<0.4,>=0.3
+python-multipart<0.1,>=0.0.20
+Pillow<13,>=12.1
+email-validator<3,>=2.3
+
+[dev]
+httpx<0.29,>=0.28
+pytest<10,>=9.0
+pytest-cov<8,>=7.0
+ruff<0.15,>=0.14

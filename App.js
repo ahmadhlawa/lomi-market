@@ -1,44 +1,38 @@
-import React, { useEffect, useState } from 'react';
-import { I18n } from 'i18n-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect } from 'react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { AuthProvider } from './src/context/AuthContext';
 import { CartProvider } from './src/context/CartContext';
+import { LanguageProvider } from './src/context/LanguageContext';
+import { bindNetworkState, ErrorBoundary, NetworkBanner } from './src/components/AppFeedback';
 import AppNavigator from './src/navigation/AppNavigator';
 import { colors } from './src/theme';
 
-const i18n = new I18n({
-  en: {
-    appName: 'Lomi Market',
-  },
-  ar: {
-    appName: 'لومي ماركت',
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 30_000, gcTime: 1000 * 60 * 60, retry: 1, networkMode: 'offlineFirst' },
+    mutations: { retry: 0, networkMode: 'online' },
   },
 });
 
-i18n.enableFallback = true;
-
 export default function App() {
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    AsyncStorage.getItem('lomi:language')
-      .then((language) => {
-        i18n.locale = language || 'en';
-      })
-      .finally(() => setReady(true));
-  }, []);
-
-  if (!ready) {
-    return null;
-  }
-
+  useEffect(() => bindNetworkState(), []);
   return (
-    <SafeAreaProvider>
-      <StatusBar style="light" backgroundColor={colors.dark} />
-      <CartProvider>
-        <AppNavigator />
-      </CartProvider>
-    </SafeAreaProvider>
+    <ErrorBoundary>
+      <SafeAreaProvider>
+        <StatusBar style="light" backgroundColor={colors.dark} />
+        <QueryClientProvider client={queryClient}>
+          <LanguageProvider>
+            <AuthProvider>
+              <CartProvider>
+                <AppNavigator />
+                <NetworkBanner />
+              </CartProvider>
+            </AuthProvider>
+          </LanguageProvider>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </ErrorBoundary>
   );
 }

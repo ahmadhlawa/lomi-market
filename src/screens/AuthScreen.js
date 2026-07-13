@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Image,
   KeyboardAvoidingView,
@@ -10,34 +10,58 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { activeOpacity, assets, colors, globalStyles, spacing } from '../theme';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+const { normalizePalestinianPhone } = require('../domain/phone.cjs');
 
 export default function AuthScreen({ navigation }) {
   const insets = useSafeAreaInsets();
+  const auth = useAuth();
+  const { language, setLanguage, t } = useLanguage();
   const otpInput = useRef(null);
   const [step, setStep] = useState('phone');
   const [phone, setPhone] = useState('');
+  const [normalizedPhone, setNormalizedPhone] = useState('');
   const [otp, setOtp] = useState('');
-  const [language, setLanguage] = useState('en');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [developmentCode, setDevelopmentCode] = useState('');
+  const [resendSeconds, setResendSeconds] = useState(0);
 
-  const toggleLanguage = async (value) => {
-    setLanguage(value);
-    await AsyncStorage.setItem('lomi:language', value);
+  useEffect(() => {
+    if (!resendSeconds) return undefined;
+    const timer = setInterval(() => setResendSeconds((value) => Math.max(0, value - 1)), 1000);
+    return () => clearInterval(timer);
+  }, [resendSeconds]);
+
+  const sendOtp = async () => {
+    setError('');
+    let normalized;
+    try { normalized = normalizePalestinianPhone(phone); } catch (issue) { setError(issue.message); return; }
+    setLoading(true);
+    try {
+      const result = await auth.requestOtp(normalized);
+      setNormalizedPhone(normalized);
+      setDevelopmentCode(result.development_code || '');
+      setResendSeconds(30);
+      setStep('otp');
+      setTimeout(() => otpInput.current?.focus(), 250);
+    } catch (issue) { setError(issue.message); } finally { setLoading(false); }
   };
 
-  const sendOtp = () => {
-    setStep('otp');
-    setTimeout(() => otpInput.current?.focus(), 250);
+  const verify = async () => {
+    if (otp.length !== 6) { setError('Enter the complete six-digit code.'); return; }
+    setError('');
+    setLoading(true);
+    try { await auth.verifyOtp(normalizedPhone, otp); navigation.replace('MainApp'); }
+    catch (issue) { setError(issue.message); }
+    finally { setLoading(false); }
   };
 
-  const verify = () => {
-    navigation.replace('MainApp');
-  };
-
-  const phoneLabel = phone.trim() || '599 123 456';
+  const phoneLabel = normalizedPhone || phone.trim() || '+970 599 123 456';
 
   return (
     <SafeAreaView edges={['top']} style={globalStyles.screen}>
@@ -52,7 +76,7 @@ export default function AuthScreen({ navigation }) {
                 key={item}
                 activeOpacity={activeOpacity}
                 style={[styles.languagePill, language === item && styles.languagePillActive]}
-                onPress={() => toggleLanguage(item)}
+                onPress={() => setLanguage(item)}
               >
                 <Text
                   style={[styles.languageText, language === item && styles.languageTextActive]}
@@ -72,10 +96,8 @@ export default function AuthScreen({ navigation }) {
 
           {step === 'phone' ? (
             <View style={styles.form}>
-              <Text style={styles.title}>Welcome back</Text>
-              <Text style={styles.subtitle}>
-                Enter your phone number to open the customer demo.
-              </Text>
+              <Text style={styles.title}>{t('auth.welcome')}</Text>
+              <Text style={styles.subtitle}>{t('auth.phoneHelp')}</Text>
 
               <View style={styles.phoneContainer}>
                 <View style={styles.countryPicker}>
@@ -92,8 +114,9 @@ export default function AuthScreen({ navigation }) {
                 />
               </View>
 
-              <TouchableOpacity activeOpacity={activeOpacity} style={styles.mainButton} onPress={sendOtp}>
-                <Text style={styles.mainButtonText}>Send demo code</Text>
+              {!!error && <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>}
+              <TouchableOpacity disabled={loading} activeOpacity={activeOpacity} style={[styles.mainButton, loading && styles.disabled]} onPress={sendOtp}>
+                <Text style={styles.mainButtonText}>{loading ? t('common.loading') : t('auth.send')}</Text>
                 <Ionicons name="arrow-forward" size={20} color={colors.dark} />
               </TouchableOpacity>
             </View>
@@ -107,10 +130,9 @@ export default function AuthScreen({ navigation }) {
                 <Ionicons name="arrow-back" size={22} color={colors.primary} />
               </TouchableOpacity>
 
-              <Text style={styles.title}>Verify phone</Text>
-              <Text style={styles.subtitle}>
-                Use any 6 digits. This is a safe demo verification for +970 {phoneLabel}.
-              </Text>
+              <Text style={styles.title}>{t('auth.verify')}</Text>
+              <Text style={styles.subtitle}>{t('auth.codeHelp', { phone: phoneLabel })}</Text>
+              {!!developmentCode && <Text style={styles.devCode}>{t('auth.devCode', { code: developmentCode })}</Text>}
 
               <Pressable style={styles.otpBoxes} onPress={() => otpInput.current?.focus()}>
                 {Array.from({ length: 6 }).map((_, boxIndex) => {
@@ -132,18 +154,21 @@ export default function AuthScreen({ navigation }) {
                 autoFocus
               />
 
-              <TouchableOpacity activeOpacity={activeOpacity} style={styles.mainButton} onPress={verify}>
-                <Text style={styles.mainButtonText}>Verify and continue</Text>
+              {!!error && <Text accessibilityRole="alert" style={styles.errorText}>{error}</Text>}
+              <TouchableOpacity disabled={loading} activeOpacity={activeOpacity} style={[styles.mainButton, loading && styles.disabled]} onPress={verify}>
+                <Text style={styles.mainButtonText}>{loading ? t('common.loading') : t('auth.continue')}</Text>
                 <Ionicons name="checkmark" size={21} color={colors.dark} />
               </TouchableOpacity>
-              <Text style={styles.resend}>Did not receive a code? Resend demo code</Text>
+              <TouchableOpacity disabled={resendSeconds > 0 || loading} onPress={sendOtp}>
+                <Text style={styles.resend}>{resendSeconds > 0 ? `${t('auth.resend')} (${resendSeconds}s)` : t('auth.resend')}</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
 
         <View style={[styles.terms, { bottom: Math.max(insets.bottom, 18) + 8 }]}>
           <Text style={styles.termsText}>
-            Demo only. No real verification, payment, or order is submitted.
+            Verification codes are time-limited. Standard messaging rates may apply in production.
           </Text>
         </View>
       </KeyboardAvoidingView>
@@ -314,6 +339,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 18,
   },
+  errorText: { color: colors.error, fontSize: 13, textAlign: 'center', marginTop: 14, fontWeight: '700' },
+  devCode: { color: colors.primary, fontSize: 13, textAlign: 'center', marginTop: 12, fontWeight: '900' },
+  disabled: { opacity: 0.6 },
   terms: {
     position: 'absolute',
     left: spacing.screen,

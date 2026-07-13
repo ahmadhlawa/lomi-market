@@ -1,0 +1,70 @@
+services:
+  database:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lomi}
+      POSTGRES_USER: ${POSTGRES_USER:-lomi}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lomi} -d ${POSTGRES_DB:-lomi}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  backend:
+    build: ../backend
+    restart: unless-stopped
+    environment:
+      LOMI_ENV: production
+      LOMI_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-lomi}:${POSTGRES_PASSWORD}@database:5432/${POSTGRES_DB:-lomi}
+      LOMI_SECRET_KEY: ${LOMI_SECRET_KEY:?Set LOMI_SECRET_KEY}
+      LOMI_CORS_ORIGINS: ${LOMI_CORS_ORIGINS}
+      LOMI_PUBLIC_BASE_URL: ${LOMI_PUBLIC_BASE_URL}
+      LOMI_UPLOAD_DIR: /app/uploads
+      LOMI_OTP_PROVIDER: ${LOMI_OTP_PROVIDER:-development}
+      LOMI_ADMIN_EMAIL: ${LOMI_ADMIN_EMAIL}
+      LOMI_ADMIN_PASSWORD: ${LOMI_ADMIN_PASSWORD:?Set LOMI_ADMIN_PASSWORD}
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      database: { condition: service_healthy }
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/ready')"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    networks: [internal]
+
+  admin:
+    build:
+      context: ../admin
+      args: { VITE_API_URL: /api/v1 }
+    restart: unless-stopped
+    networks: [internal]
+
+  gateway:
+    image: nginx:1.28-alpine
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./certs:/etc/nginx/certs:ro
+      - uploads:/var/www/uploads:ro
+    depends_on:
+      backend: { condition: service_healthy }
+      admin: { condition: service_started }
+    networks: [internal]
+
+volumes:
+  postgres_data:
+  uploads:
+
+networks:
+  internal:
+    driver: bridge
